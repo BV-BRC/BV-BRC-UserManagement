@@ -29,7 +29,7 @@ passport.use(new LocalStrategy(
 
 passport.serializeUser(function(user, done) {
   console.log("serialize User: ", user);
-  done(null, user.id);
+  done(null, user.id || user);
 });
 
 passport.deserializeUser(function(id, done) {

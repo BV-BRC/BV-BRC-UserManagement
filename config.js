@@ -15,7 +15,9 @@ var defaults =  {
 	"patric3_webapp_callbackURL": "http://www.patric.local:3000/auth/callback",
         "cookieSecret": "patric3",
         "cookieKey": "patric3",
-        "cookieDomain": ".patric.local"
+        "cookieDomain": ".patric.local",
+	"signing_PEM": "private.pem",
+	"signing_public_PEM": "public.pem"
 }
 
 module.exports = nconf.argv().env().file("./p3-user.conf").defaults(defaults);

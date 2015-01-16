@@ -14,7 +14,25 @@ var cors = require('cors');
 var debug = require('debug')('p3api-user');
 var userView = require("./routes/user");
 var clientView= require("./routes/client");
+var fs = require("fs-extra");
 var app = express();
+
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+if (config.get("signing_PEM")){
+        var f = config.get("signing_PEM");
+        if (f.charAt(0)!="/") {
+                f = __dirname + "/" + f;
+        }
+        try {
+                console.log("Filename: ", f);
+                SigningPEM =   fs.readFileSync(f);
+              if (SigningPEM) { console.log("Got PEM File") }
+        }catch(err){
+                console.log("Could not find PEM File: ", f, err);
+        }
+}
+
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -52,6 +70,18 @@ require("./auth");
 app.post("/login", site.login);
 app.get("/login", site.loginForm);
 app.get("/logout", site.logout);
+app.get("/public_key", [
+	function(req,res,next){
+		var pubKeyFile = config.get('signing_public_PEM');
+		if (!pubKeyFile) { next("route"); }
+		fs.readFile(pubKeyFile,"utf-8", function(err,data){
+			if (err) { return next(err); }
+			
+			res.json({"pubkey":data,"valid":1});
+			res.end();
+		});
+	}
+]);
 //app.get("/dialog/authorize", oauth2.authorization);
 //app.post("/dialog/authorize/decision", oauth2.decision);
 //app.post("/oauth2/token", oauth2.token);
@@ -60,7 +90,7 @@ app.get("/logout", site.logout);
 //app.get("/api/clientinfo", clientView.info);
 
 app.get("/$", site.index)
-// app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
