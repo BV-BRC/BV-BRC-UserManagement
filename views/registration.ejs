@@ -1,0 +1,28 @@
+<html>
+	<head>
+		<% include header %>
+	</head>
+	<body class="claro">
+		<div class="RegistrationForm" style="width:640px;margin-left:auto;margin-right:auto;font-size:1.1em;margin-bottom:10px;margin-top:10px;padding:10px;border: 2px solid #ababab; border-radius: 4px;">
+			<h2 style="margin:0px;padding:4px;font-size:1.2em;text-align:center;background:#eee;">PATRIC User Registration</h2>
+			<form method="post" data-dojo-type="dijit/form/Form">
+			
+				<div style="padding:2px; margin:10px;">
+					<input type="text" name="username"/ data-dojo-type="dijit/form/ValidationTextBox" style="margin:10px;width:150px;" data-dojo-props='placeholder:"username",promptMessage:"Enter your desired Username",regExp:"[\\w]+",invalidMessage:"Invalid non-space text" ' required="true" value="<%= (error && error.message && error.message.match(/username/gi) && formData && formData.username)?"":(formData&&formData.username)?formData.username:"" %>"><br>
+
+					<input type="text" name="name"/ data-dojo-type="dijit/form/ValidationTextBox" style="width:300px;margin:10px;" data-dojo-props='placeholder:"Your Full Name",promptMessage:"Enter your Full Name",trim:true' required="false" value="<%= (formData&&formData.name)?formData.name:"" %>"><br/>
+					<input type="text" name="email"/ data-dojo-type="dijit/form/ValidationTextBox" style="width:300px;margin:10px;" data-dojo-props='placeholder:"Email Address",promptMessage:"Enter your Email Address",invalidMessage:"Invalid Email Address",validator:dojox.validate.isEmailAddress,trim:true' required="true" value="<%= (error && error.message && error.message.match(/email/gi))?"":(formData&&formData.email)?formData.email:""%>" ><br/>
+				</div>
+				<% if (error) { %>
+					<div style="text-align:center; padding;2px;margin:10px;color: red">
+						<%= error.message %>
+					</div>
+				<% } %>
+				<div style="text-align:center;padding:2px;margin:10px;">
+					<div type="submit" value="Register" data-dojo-type="dijit/form/Button">Register New User</div>
+				</div>
+			</form>
+		</div>
+		<% include javascript %>
+	</body>
+</html>

@@ -6,7 +6,9 @@
     "start": "node ./bin/www"
   },
   "dependencies": {
+    "bcrypt": "^0.8.1",
     "body-parser": "~1.8.1",
+    "bson": "^0.2.17",
     "connect-ensure-login": "^0.1.1",
     "connect-redis": "^2.1.0",
     "cookie-parser": "~1.3.3",
@@ -20,17 +22,20 @@
     "mongodb": "^1.4.19",
     "morgan": "~1.3.0",
     "nconf": "^0.6.9",
+    "node-uuid": "^1.4.2",
+    "nodemailer": "^1.3.0",
+    "nodemailer-smtp-transport": "^0.1.13",
     "oauth2orize": "^1.0.1",
     "passport": "^0.2.1",
     "passport-facebook": "^1.0.3",
     "passport-http": "^0.2.2",
+    "passport-http-bearer": "~1.0.1",
     "passport-local": "^1.0.0",
+    "passport-oauth2-client-password": "~0.1.2",
     "passport-twitter": "^1.0.2",
     "promised-io": "^0.3.4",
+    "randomstring": "^1.0.3",
     "replify": "^1.2.0",
-    "serve-favicon": "~2.1.3",
-    "passport-oauth2-client-password": "~0.1.2",
-    "passport-http-bearer": "~1.0.1",
-    "node-uuid": "~1.4.2"
+    "serve-favicon": "~2.1.3"
   }
 }

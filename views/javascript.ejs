@@ -1,0 +1,16 @@
+
+                <script>
+                        var dojoConfig = {
+                                parseOnLoad: true
+                        }
+                </script>
+                <% if (request&&request.production){ %>
+                        <script src="/js/release/dojo/dojo.js"></script>
+                <% } else { %>
+                        <script src="/js/dojo/dojo.js"></script>
+			<script>
+				require(["dojox/validate/web"]);
+			</script>
+                <% } %>
+
+                </script>

@@ -16,6 +16,9 @@ var userView = require("./routes/user");
 var clientView= require("./routes/client");
 var fs = require("fs-extra");
 var app = express();
+var DataModel = require("./dataModel");
+var engine = require('dme');
+require('dme/media/');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
@@ -47,11 +50,6 @@ app.use(cors({origin: true, methods: ["GET,PUT,POST,PUT,DELETE"], allowHeaders: 
 
 app.use(cookieParser(config.get('cookieSecret')));
 
-app.use(function(req,res,next){
-	console.log("Cookies: ", req.cookies);
-	next();
-});
-
 var sessionStore = app.sessionStore = new RedisStore(config.get("redis"));
 app.use(session({
     store: sessionStore,
@@ -65,11 +63,38 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session()); // persistent login sessions
 
+app.use(function(req,res,next){
+	if (req.isAuthenticated && req.isAuthenticated()){
+		if (req.user && req.user.roles && (req.user.roles.indexOf("admin")>=0)) {
+			req.apiPrivilegeFacet="admin";
+		}else{
+			req.apiPrivilegeFacet="user";
+		}
+	}else{
+		req.apiPrivilegeFacet="public";
+//		if (req.session && req.session.userProfile){
+//			req.session.regenerate();
+//		}
+	}
+//	console.log("USING PRIVILEGE FACET: ", req.apiPrivilegeFacet);
+	next();
+});
+
+
 require("./auth");
 
 app.post("/login", site.login);
 app.get("/login", site.loginForm);
 app.get("/logout", site.logout);
+app.get("/register", site.register);
+app.post("/register", site.handleRegistration);
+app.get("/reset/:email/:code", site.performResetWithCode);
+app.get("/reset_password", site.requestResetPassword);
+app.post("/reset_password", site.resetPassword);
+app.get("/change_password", site.changePasswordForm);
+app.post("/change_password", site.changePassword);
+
+
 app.get("/public_key", [
 	function(req,res,next){
 		var pubKeyFile = config.get('signing_public_PEM');
@@ -82,6 +107,9 @@ app.get("/public_key", [
 		});
 	}
 ]);
+
+app.use(engine(DataModel));
+
 //app.get("/dialog/authorize", oauth2.authorization);
 //app.post("/dialog/authorize/decision", oauth2.decision);
 //app.post("/oauth2/token", oauth2.token);

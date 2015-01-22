@@ -7,6 +7,9 @@ var passport = require('passport')
   , ClientPasswordStrategy = require('passport-oauth2-client-password').Strategy
   , BearerStrategy = require('passport-http-bearer').Strategy
   , db = require('./db')
+  , when = require('promised-io/promise').when
+  , bcrypt = require('bcrypt')
+  , DataModel = require("./DataModel");
 
 
 /**
@@ -18,26 +21,41 @@ var passport = require('passport')
  */
 passport.use(new LocalStrategy(
   function(username, password, done) {
-    db.users.findByUsername(username, function(err, user) {
-      if (err) { return done(err); }
-      if (!user) { return done(null, false); }
-      if (user.password != password) { return done(null, false); }
-      return done(null, user);
+	console.log("LocalStrategry Verify()");
+    when(DataModel.get("user").get(username),function(user){
+	console.log("Login Check for: ", user.id, user.password, password);
+	bcrypt.compare(password,user.password, function(err,res){
+		if (err) { return done(err); }
+		if (res) {
+			return done(null,user);
+		}
+		return done(null,false);
+	})
+    }, function(err){
+	console.log("Error Retrieving User: ", err);
+	if (err){
+		return done(err);
+	}
+	done(null,false);
     });
   }
 ));
 
 passport.serializeUser(function(user, done) {
-  console.log("serialize User: ", user);
+//  console.log("serialize User: ", user);
   done(null, user.id || user);
 });
 
 passport.deserializeUser(function(id, done) {
-  console.log("deserializeUser ID: ", id);
-  db.users.find(id, function (err, user) {
-	console.log("deserialized User: ", user);
-    done(err, user);
-  });
+    when(DataModel.get("user").get(id),function(user){
+	return done(null,user);
+    }, function(err){
+	if (err){
+		return done(err);
+	}
+	done(null,false);
+    });
+
 });
 
 
