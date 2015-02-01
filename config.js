@@ -23,7 +23,7 @@ var defaults =  {
 		"localSendmail": false,
 		"defaultFrom": "PATRIC <do-not-reply@patricbrc.org>",
 		"defaultSender": "PATRIC <do-not-reply@patricbrc.org>",
-                "host": ""
+                "host": "",
                 "port":587
         },
 }
