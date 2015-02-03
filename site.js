@@ -67,7 +67,7 @@ exports.login = [
 				if (user && req.session) {
 					delete user.password;
 					req.session.userProfile = user;
-					req.session.accessToken = generateBearerToken(user,req);
+					req.session.authorizationToken = generateBearerToken(user,req);
 				}else{
 					console.log("NO Session");
 				}
