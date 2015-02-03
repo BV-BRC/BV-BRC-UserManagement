@@ -19,6 +19,7 @@ var defaults =  {
         "cookieDomain": ".patric.local",
 	"signing_PEM": "private.pem",
 	"signing_public_PEM": "public.pem",
+	"realm": "patricbrc.org",
 	"email": {
 		"localSendmail": false,
 		"defaultFrom": "PATRIC <do-not-reply@patricbrc.org>",

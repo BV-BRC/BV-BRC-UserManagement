@@ -34,11 +34,12 @@ function generateBearerToken(user,req){
 	var tokenid = uuid.v4().toString()
 	var exp = new Date(); exp.setDate(exp.getDate()+1);
 	var expiration=Math.floor(exp.valueOf()/1000);
-
+	var realm = config.get('realm');
+	
 	var payload = [
-		"un=" + name, "tokenid=" + tokenid, 
-		"expiry="+expiration,"client_id=" + name,
-		"token_type=" + "Bearer","realm=" + "PATRIC"
+		"un=" + name + "@" + realm, "tokenid=" + tokenid, 
+		"expiry="+expiration,"client_id=" + name + "@" + realm,
+		"token_type=" + "Bearer","realm=" + realm
 	];
 	
 	payload.push("SigningSubject=" + config.get("signingSubjectURL"));
