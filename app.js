@@ -51,6 +51,7 @@ app.use(cors({origin: true, methods: ["GET,PUT,POST,PUT,DELETE"], allowHeaders: 
 app.use(cookieParser(config.get('cookieSecret')));
 
 var sessionStore = app.sessionStore = new RedisStore(config.get("redis"));
+console.log("sessionStore: ", sessionStore);
 app.use(session({
     store: sessionStore,
     name: config.get("cookieKey"),

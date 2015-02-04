@@ -63,6 +63,7 @@ exports.login = [
 
 			req.logIn(user, function(err) {
 				if (err) { return next(err); }
+				console.log("req.logIn user: ", user, "Session: ", req.session);
 
 				if (user && req.session) {
 					delete user.password;
