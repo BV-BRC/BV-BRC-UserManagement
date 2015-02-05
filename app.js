@@ -63,7 +63,15 @@ app.use(session({
 
 app.use(passport.initialize());
 app.use(passport.session()); // persistent login sessions
-
+app.use(function(req,res,next){
+    console.log("Config.production: ", config.production);
+    console.log("Session Data: ", req.session);
+    req.config = config;
+    req.production = config.get("production") || false;
+    req.productionLayers=["p3/layer/core"]
+    req.applicationOptions = {version: "3.0", workspaceServiceURL:config.get("workspaceServiceURL"),appServiceURL:config.get("appServiceURL"),dataServiceURL:config.get("dataServiceURL")}
+    next();
+})
 app.use(function(req,res,next){
 	if (req.isAuthenticated && req.isAuthenticated()){
 		if (req.user && req.user.roles && (req.user.roles.indexOf("admin")>=0)) {
