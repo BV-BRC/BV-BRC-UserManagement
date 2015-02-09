@@ -9,7 +9,7 @@ var passport = require('passport')
   , db = require('./db')
   , when = require('promised-io/promise').when
   , bcrypt = require('bcrypt')
-  , DataModel = require("./DataModel");
+  , DataModel = require("./dataModel");
 
 
 /**
