@@ -32,7 +32,7 @@ exports.loginForm = function(req, res) {
 function generateBearerToken(user,req){
 	var name = user.username || user.id;
 	var tokenid = uuid.v4().toString()
-	var exp = new Date(); exp.setDate(exp.getDate()+182);
+	var exp = new Date(); exp.setFullYear(exp.getFullYear()+1);
 	var expiration=Math.floor(exp.valueOf()/1000);
 	var realm = config.get('realm');
 	
@@ -67,8 +67,10 @@ exports.login = [
 
 				if (user && req.session) {
 					delete user.password;
-					req.session.userProfile = user;
+					delete user.reset_code;
 					req.session.authorizationToken = generateBearerToken(user,req);
+					user.id = user.id + "@patricbrc.org";
+					req.session.userProfile = user;
 				}else{
 					console.log("NO Session");
 				}

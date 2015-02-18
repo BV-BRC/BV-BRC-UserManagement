@@ -5,12 +5,28 @@
                         }
                 </script>
                 <% if (request&&request.production){ %>
-                        <script src="/js/release/dojo/dojo.js"></script>
-                <% } else { %>
-                        <script src="/js/dojo/dojo.js"></script>
-			<script>
-				require(["dojox/validate/web"]);
+	                <script>
+				var dojoConfig = {
+					parseOnLoad:false 
+				}
 			</script>
+ 
+                        <script src="/js/release/dojo/dojo.js"></script>
+			<script>
+				require(["p3/layer/p3user","dojox/validate/web"], function(){
+					require(["dojo/parser"], function(parser){
+						parser.parse();
+					});
+				});
+                <% } else { %>
+	                <script>
+				var dojoConfig = {
+					parseOnLoad: true,
+					deps: ["dojox/validate/web"]
+				}
+			</script>
+ 
+                        <script src="/js/dojo/dojo.js"></script>
                 <% } %>
 
                 </script>
