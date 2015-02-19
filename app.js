@@ -54,7 +54,7 @@ var sessionStore = app.sessionStore = new RedisStore(config.get("redis"));
 console.log("sessionStore: ", sessionStore);
 app.use(session({
     store: sessionStore,
-    name: config.get("cookieKey"),
+    key: config.get("cookieKey"),
     cookie: { domain: config.get('cookieDomain'),  maxAge: 2628000000 },
     secret: config.get('cookieSecret'),
     resave:false,
