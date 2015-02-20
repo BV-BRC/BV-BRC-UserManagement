@@ -53,6 +53,29 @@ function generateBearerToken(user,req){
 	return token; 
 }
 
+function generateJBOSSSession(req, user){
+	req.session["portal.prinicipal" + user.id.replace("@patricbrc.org","") + "user"] = {
+		"id": user.id.replace("@patricbrc.org",""),
+		"name": user.name
+	}
+
+	req.session["portal.prinicipal" + user.id.replace("@patricbrc.org","") + "profile"] = {
+		"user.name.family": user.name.split(" ")[1]||"",
+		"user.name.nickName": user.name.split(" ")[0],
+		"user.login.id": user.id.replace("@patricbrc.org",""),
+		"portal.user.email.fake": null,
+		"portal.user.last-login-date": new Date().valueOf(),
+		"portal.user.enabled": true,
+		"portal.user.email.view-real": false,
+		"portal.user.registration-date": user.creationDate,
+		"user.name.given": user.name.split(" ")[0],
+		"user.business-info.online.email": user.email
+	}
+
+	req.session["PRINCIPAL_TOKEN"] = user.id.replace("@patricbrc.org","");
+
+}
+
 exports.login = [
 	bodyParser.urlencoded({extended:true}),
 	function(req,res,next){
@@ -71,6 +94,7 @@ exports.login = [
 					req.session.authorizationToken = generateBearerToken(user,req);
 					user.id = user.id + "@patricbrc.org";
 					req.session.userProfile = user;
+					generateJBOSSSession(req,user);
 				}else{
 					console.log("NO Session");
 				}
@@ -92,6 +116,7 @@ exports.login = [
 ]
 
 exports.logout = function(req, res) {
+  req.session.destroy();
   req.logout();
   res.redirect('/');
 }

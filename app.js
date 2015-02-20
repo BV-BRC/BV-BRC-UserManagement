@@ -48,7 +48,7 @@ app.use(logger('dev'));
 app.use(bodyParser.urlencoded({ extended: true}));
 app.use(cors({origin: true, methods: ["GET,PUT,POST,PUT,DELETE"], allowHeaders: ["content-type", "authorization"],exposedHeaders: ['Content-Range', 'X-Content-Range'], credential: true, maxAge: 8200}));
 
-app.use(cookieParser(config.get('cookieSecret')));
+app.use(cookieParser()); //config.get('cookieSecret')));
 
 var sessionStore = app.sessionStore = new RedisStore(config.get("redis"));
 console.log("sessionStore: ", sessionStore);
@@ -56,13 +56,13 @@ app.use(session({
     store: sessionStore,
     key: config.get("cookieKey"),
     cookie: { domain: config.get('cookieDomain'),  maxAge: 2628000000 },
-    secret: config.get('cookieSecret'),
     resave:false,
     saveUninitialized:true
 }));
 
 app.use(passport.initialize());
 app.use(passport.session()); // persistent login sessions
+
 app.use(function(req,res,next){
     console.log("Config.production: ", config.production);
     console.log("Session Data: ", req.session);
@@ -107,12 +107,14 @@ app.post("/validate", site.validateUserCredentials);
 app.get("/public_key", [
 	function(req,res,next){
 		var pubKeyFile = config.get('signing_public_PEM');
-		if (!pubKeyFile) { next("route"); }
+		if (!pubKeyFile) { console.log("pubKeyFile found"); next("route"); }
 		fs.readFile(pubKeyFile,"utf-8", function(err,data){
 			if (err) { return next(err); }
-			
-			res.json({"pubkey":data,"valid":1});
+			console.log("Pub Key: ", data);		
+			res.write(JSON.stringify({"pubkey":data,"valid":1}));
+			console.log("JSON Written");
 			res.end();
+			console.log("After end");
 		});
 	}
 ]);

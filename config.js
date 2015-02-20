@@ -14,7 +14,7 @@ var defaults =  {
         },
 	"siteURL": "http://user.patric.local:3002",
 	"patric3_webapp_callbackURL": "http://www.patric.local:3000/auth/callback",
-        "cookieSecret": "patric3",
+        "//cookieSecret": "patric3",
         "cookieKey": "JSESSIONID",
         "cookieDomain": ".patric.local",
 	"signing_PEM": "private.pem",
