@@ -13,7 +13,7 @@
  
                         <script src="/js/release/dojo/dojo.js"></script>
 			<script>
-				require(["p3/layer/p3user","dojox/validate/web"], function(){
+				require(["p3/layer/p3user","dojox/validate/web","p3/widget/LoginForm"], function(){
 					require(["dojo/parser"], function(parser){
 						parser.parse();
 					});
@@ -22,7 +22,7 @@
 	                <script>
 				var dojoConfig = {
 					parseOnLoad: true,
-					deps: ["dojox/validate/web"]
+					deps: ["p3/widget/LoginForm","dojox/validate/web"]
 				}
 			</script>
  

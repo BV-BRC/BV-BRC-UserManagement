@@ -22,7 +22,11 @@ var passport = require('passport')
 passport.use(new LocalStrategy(
   function(username, password, done) {
 	console.log("LocalStrategry Verify()");
+	console.log("Login Username: ", username);
     when(DataModel.get("user").get(username),function(user){
+	if (!user) {
+		return done(false);
+	}
 	console.log("Login Check for: ", user.id, user.password, password);
 	bcrypt.compare(password,user.password, function(err,res){
 		if (err) { return done(err); }

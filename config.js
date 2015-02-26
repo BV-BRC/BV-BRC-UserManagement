@@ -10,6 +10,7 @@ var defaults =  {
                 "host": "127.0.0.1",
                 "port": 6379,
                 "db": 1,
+		"prefix": "",
                 "pass":""
         },
 	"siteURL": "http://user.patric.local:3002",

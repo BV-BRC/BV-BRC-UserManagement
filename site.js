@@ -23,11 +23,25 @@ exports.index = [
 	}
 ]
 
-exports.loginForm = function(req, res) {
-	console.log("Render Login Form");
-	console.log('req: ', req);
-  	res.render('login', {title: "Login Form", request: req});
-};
+exports.loginForm = [
+	function(req, res) {
+		console.log("Render Login Form");
+		console.log('req.query: ', req.query);
+		var callbackURL="/";
+	
+		if (req.query && req.query.application_id){
+			if (req.query.application_id=="patric3"){
+				callbackURL=config.get('patric3_webapp_callbackURL');
+			}else{
+				throw Error("Invalid Application ID");
+			}
+		}else{
+			console.log("No Application ID, set call back to /");
+		}
+		console.log("Using CallbackURL: ", callbackURL);
+  		res.render('login', {title: "Login Form", request: req, callbackURL: callbackURL});
+	}
+];
 
 function generateBearerToken(user,req){
 	var name = user.username || user.id;
@@ -54,6 +68,8 @@ function generateBearerToken(user,req){
 }
 
 function generateJBOSSSession(req, user){
+
+
 	req.session["portal.prinicipal" + user.id.replace("@patricbrc.org","") + "user"] = {
 		"id": user.id.replace("@patricbrc.org",""),
 		"name": user.name
@@ -82,10 +98,18 @@ exports.login = [
 		passport.authenticate('local', function(err,user,info){
 			console.log("local auth: ", user, info, req.query);
 			if (err) { return next(err); }
-			if (!user) { return res.redirect('/login'); }
+			if (!user) { 
+				if (req.headers && req.headers["x-requested-with"] && (req.headers["x-requested-with"]=="XMLHttpRequest")){
+                                        res.status(401);
+                                        res.end();
+                                        return;
+                                }	
+				return res.redirect('/login');
+			 }
 
 			req.logIn(user, function(err) {
 				if (err) { return next(err); }
+
 				console.log("req.logIn user: ", user, "Session: ", req.session);
 
 				if (user && req.session) {
@@ -94,11 +118,18 @@ exports.login = [
 					req.session.authorizationToken = generateBearerToken(user,req);
 					user.id = user.id + "@patricbrc.org";
 					req.session.userProfile = user;
-					generateJBOSSSession(req,user);
 				}else{
 					console.log("NO Session");
 				}
 
+				if (req.headers && req.headers["x-requested-with"] && (req.headers["x-requested-with"]=="XMLHttpRequest")){
+					req.session.save( function(){
+						console.log("Session Saved: ", req.session);
+						res.status(204);
+						res.end();
+					});
+					return;
+				}
 				if (req.query.application_id){
 					if (req.query.application_id=="patric3"){
 						res.write("<html><body><script>window.location='" + config.get("patric3_webapp_callbackURL") + "';</script></body></html>");

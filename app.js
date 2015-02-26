@@ -69,7 +69,7 @@ app.use(function(req,res,next){
     req.config = config;
     req.production = config.get("production") || false;
     req.productionLayers=["p3/layer/core"]
-    req.applicationOptions = {version: "3.0", workspaceServiceURL:config.get("workspaceServiceURL"),appServiceURL:config.get("appServiceURL"),dataServiceURL:config.get("dataServiceURL")}
+    req.applicationOptions = {version: "3.0", workspaceServiceURL:config.get("workspaceServiceURL"),appServiceURL:config.get("appServiceURL"),dataServiceURL:config.get("dataServiceURL") }
     next();
 })
 app.use(function(req,res,next){
