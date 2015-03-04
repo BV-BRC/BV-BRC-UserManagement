@@ -104,7 +104,7 @@ var Model = exports.Model = declare([ModelBase], {
 				if (mailconf.username){
 					transportOpts.auth = {
 						user: mailconf.username,
-						pass mailconf.password
+						pass: mailconf.password
 					}
 				}
 				var transport = email.createTransport(smtpTransport(transportOpts));
