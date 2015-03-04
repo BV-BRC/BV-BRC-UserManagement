@@ -96,15 +96,18 @@ var Model = exports.Model = declare([ModelBase], {
 			}
 
 			if (!transport){
-				var transport = email.createTransport(smtpTransport({
-					host: mailconf.host || "localhost", // "smtp.emailsrvr.com",
-					port: mailconf.port || 25,   //587,
-					auth: {
-	                                        user: mailconf.username, //"responder@hapticscience.com",
-						pass: mailconf.password //
-					},
+				var transportOpts = {
+					host: mailconf.host || "localhost",
+					port: mailconf.port || 25,
 					debug: true
-				}));
+				}
+				if (mailconf.username){
+					transportOpts.auth = {
+						user: mailconf.username,
+						pass mailconf.password
+					}
+				}
+				var transport = email.createTransport(smtpTransport(transportOpts));
 			}
 
 	                var mailmsg = {
