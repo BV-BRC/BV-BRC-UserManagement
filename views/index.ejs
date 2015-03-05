@@ -5,8 +5,8 @@
 	<body class="claro">
 	<% include p3header %>
 	<h2>User: <%= request.user.id  %> </h2>
-	<h3><%= request.user.name  %></h3>
-	<p><%= request.user.email  %></p>
+	<p>Email: <%= request.user.email  %></p>
+	<pre>Profile: <%- JSON.stringify(user, null,4) %></pre>
 	<% include javascript %>
 	</body>
 </html>

@@ -23,7 +23,7 @@ var Model = exports.Model = declare([ModelBase], {
 		var _self=this;
 		console.log("registerUser this: ");
 		var siteUrl = config.get("siteURL");
-		var newUser = {name: user.name, email: user.email}
+		var newUser = user; //{name: user.name, email: user.email}
 		
 		var q = ["or(eq(id,",encodeURIComponent(user.username), "),eq(email,", encodeURIComponent(user.email),"))"].join("");
 

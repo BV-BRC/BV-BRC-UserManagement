@@ -32,13 +32,14 @@ exports.loginForm = [
 		if (req.query && req.query.application_id){
 			if (req.query.application_id=="patric3"){
 				callbackURL=config.get('patric3_webapp_callbackURL');
+  				res.render('loginDialog', {title: "Login Form", request: req, callbackURL: callbackURL});
+				return;
 			}else{
 				throw Error("Invalid Application ID");
 			}
 		}else{
 			console.log("No Application ID, set call back to /");
 		}
-		console.log("Using CallbackURL: ", callbackURL);
   		res.render('login', {title: "Login Form", request: req, callbackURL: callbackURL});
 	}
 ];
@@ -147,9 +148,15 @@ exports.login = [
 ]
 
 exports.logout = function(req, res) {
+
   req.session.destroy();
   req.logout();
-  res.redirect('/');
+  var redir = config.get("p3Home");
+  if (redir) {
+	res.redirect(redir);
+  }else{
+	  res.redirect('/');
+  }
 }
 exports.register = [
 	login.ensureLoggedOut({redirectTo: "/"}),

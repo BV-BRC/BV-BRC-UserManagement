@@ -14,19 +14,29 @@
                         <script src="/js/release/dojo/dojo.js"></script>
 			<script>
 				require(["p3/layer/p3user","dojox/validate/web","p3/widget/LoginForm"], function(){
-					require(["dojo/parser"], function(parser){
-						parser.parse();
+					require(["p3/app/app"], function(){
+						appOpts=<%- JSON.stringify(request.applicationOptions || {}) %>
+						appOpts.user = <%- (request&&request.session)?(JSON.stringify(request.session.userProfile)):"" %>
+       						window.App = new App(appOpts);
 					});
 				});
                 <% } else { %>
 	                <script>
 				var dojoConfig = {
-					parseOnLoad: true,
-					deps: ["p3/widget/LoginForm","dojox/validate/web"]
+					parseOnLoad: false,
+					deps: ["p3/widget/LoginForm","dojox/validate/web","p3/widget/UserProfileEditor"]
 				}
 			</script>
  
                         <script src="/js/dojo/dojo.js"></script>
+			<script>
+				
+                                       require(["p3/app/app"], function(App){
+                                                appOpts=<%- JSON.stringify(request.applicationOptions || {}) %>
+                                                appOpts.user = <%- (request&&request.session)?(JSON.stringify(request.session.userProfile)):"" %>
+                                                window.App = new App(appOpts);
+                                        });
+			</script>
                 <% } %>
 
                 </script>
