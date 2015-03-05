@@ -14,7 +14,7 @@
                         <script src="/js/release/dojo/dojo.js"></script>
 			<script>
 				require(["p3/layer/p3user","dojox/validate/web","p3/widget/LoginForm"], function(){
-					require(["p3/app/app"], function(){
+					require(["p3/app/app"], function(App){
 						appOpts=<%- JSON.stringify(request.applicationOptions || {}) %>
 						appOpts.user = <%- (request&&request.session)?(JSON.stringify(request.session.userProfile)):"" %>
        						window.App = new App(appOpts);
