@@ -144,6 +144,7 @@ var Model = exports.Model = declare([ModelBase], {
 		opts = opts || {}
 		console.log("Reset Account: ", id);
 		return when(_self.get(id,opts), function(user) {	
+			if (!user || !user.id) { throw Error("Unable to find user"); }
 			var obj = {id: user.id, resetCode: randomstring.generate(5).toUpperCase()};
 			return when(_self.post(obj,opts), function(res){
 				console.log("resetAccount() post results: ", res);
@@ -158,6 +159,8 @@ var Model = exports.Model = declare([ModelBase], {
 				}
 				return res;
 		        });
+		}, function(err){
+			console.log("Invalid Account");
 		});
 	},
 

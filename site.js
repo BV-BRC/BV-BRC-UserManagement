@@ -204,7 +204,7 @@ exports.requestResetPassword = [
 	login.ensureLoggedOut({redirectTo: "/"}),
 	function(req,res,next){
 		console.log("Render Reset Password Form");
-		res.render("reset_password",{title: "PATRIC Registration", request:req});
+		res.render("reset_password",{title: "PATRIC Registration", request:req, error: ""});
 	}
 
 ];
@@ -214,6 +214,8 @@ exports.resetPassword = [
 		if (req.body.email) {
 	                return when(UserModel.resetAccount(req.body.email,{mail_user:true}), function(user){
 				res.render("reset_complete", {title: "Reset Complete", request: req});
+			}, function(err){
+				res.render("reset_password", {title: "Reset Your Password", request: req, error: "Unable to reset the account with the provided id or email address"});
 			});
                 }
 
