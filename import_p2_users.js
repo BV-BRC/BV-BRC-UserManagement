@@ -37,7 +37,9 @@ rl.on('line',function(line){
 	creationDate: new Date(),
 	updateDate: new Date(),
 	mailingList: (parts[8]=="N")?false:true,
-	password: parts[9]
+	password: parts[9],
+	registrationDate: parts[10]?(new Date(parts[10])):"",
+	lastLogin: parts[11]?(new Date(parts[11])):"",
     } 
    console.log("User: ", JSON.stringify(user));
 
