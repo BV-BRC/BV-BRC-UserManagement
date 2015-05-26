@@ -266,7 +266,7 @@ exports.changePassword = [
 		}
 	}
 ];
-exports.validate= [
+exports.validateUserCredentials= [
 	bodyParser.urlencoded({extended:true}),
 	function(req,res,next){
 		when(dataModel.get("user").get(req.body.username),function(user){
