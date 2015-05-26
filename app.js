@@ -103,6 +103,7 @@ app.post("/reset_password", site.resetPassword);
 app.get("/change_password", site.changePasswordForm);
 app.post("/change_password", site.changePassword);
 app.post("/validate", site.validateUserCredentials);
+app.post("/authenticate", site.simpleAuth);
 
 app.get("/public_key", [
 	function(req,res,next){

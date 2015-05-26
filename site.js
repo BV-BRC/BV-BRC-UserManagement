@@ -266,8 +266,7 @@ exports.changePassword = [
 		}
 	}
 ];
-
-exports.validateUserCredentials = [
+exports.simpleAuth= [
 	bodyParser.urlencoded({extended:true}),
 	function(req,res,next){
 		when(dataModel.get("user").get(req.body.username),function(user){
@@ -285,6 +284,33 @@ exports.validateUserCredentials = [
 				}
 
 				res.status(204);	
+				res.end();
+			})
+		}, function(err){
+			res.status(401)
+			res.end();
+		});
+	}
+]
+exports.simpleAuth= [
+	bodyParser.urlencoded({extended:true}),
+	function(req,res,next){
+		when(dataModel.get("user").get(req.body.username),function(user){
+			if (!user || !user.password){
+				res.status(401);
+				res.end();	
+				return;
+			}
+			console.log("Login Check for: ", user, req.body.password);
+			bcrypt.compare(req.body.password,user.password, function(err,results){
+				if (err || !results) { 
+					res.status(401)
+					res.end();
+					return;
+				}
+
+				var token = generateBearerToken(user,req);
+				res.write(token);
 				res.end();
 			})
 		}, function(err){
