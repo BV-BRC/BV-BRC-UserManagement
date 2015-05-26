@@ -34,7 +34,7 @@ rl.on('line',function(line){
 	affiliation: parts[5]?(parts[5].replace("/r","/r/n")):"",
 	organisms: parts[6]?(parts[6].replace("/r","/r/n")):"",
 	interests: parts[7]?(parts[7].replace("/r","/r/n")):"",
-	creationDate: new Date(),
+	importDate: new Date(),
 	updateDate: new Date(),
 	mailingList: (parts[8]=="N")?false:true,
 	password: parts[9],
