@@ -61,7 +61,7 @@ Object.keys(models).forEach(function(modelId){
 					var req = opts.req || {};
 					if (req.user && req.user.id) {
 						console.log("Mail To: ", req.user.id);
-						return when(this.model.mail(req.user.id.replace("@patricbrc.org",""),message, "[PATRIC-" +event + "]",opts), function(){
+						return when(this.model.mail(req.user.id.replace("@patricbrc.org",""),message, "[PATRIC-" + event + "] " + subject,opts), function(){
 							return {results: "Notification Sent"}
 						});
 					}else{
