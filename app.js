@@ -18,6 +18,9 @@ var fs = require("fs-extra");
 var app = express();
 var DataModel = require("./dataModel");
 var engine = require('dme');
+var when = require("promised-io/promise").when;
+var validateToken = require("./validateToken");
+
 require('dme/media/');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -72,8 +75,35 @@ app.use(function(req,res,next){
     req.applicationOptions = {version: "3.0", workspaceServiceURL:config.get("workspaceServiceURL"),appServiceURL:config.get("appServiceURL"),dataServiceURL:config.get("dataServiceURL"), p3Home: config.get("p3Home") }
     next();
 })
+
+app.use(function(req,res,next){
+	if (!req.isAuthenticated || (req.isAuthenticated && !req.isAuthenticated())){
+		if (req.headers && req.headers["authorization"]) {
+			when(validateToken(req.headers["authorization"]),function(valid){
+				if (valid) {
+					console.log("Valid Login: ", valid);
+					req.logIn(valid, function(err){
+						if (err) {return  next(err); }
+						next();	
+					});
+				}else{
+					next();
+				}
+			}, function(err){
+				console.log("Invalid Token Validation");
+				next(err);
+			})
+		}else {
+			next();
+		}
+	}else{
+		next();
+	}
+});
+
 app.use(function(req,res,next){
 	if (req.isAuthenticated && req.isAuthenticated()){
+		console.log("loggedIn: ", req.user);
 		if (req.user && req.user.roles && (req.user.roles.indexOf("admin")>=0)) {
 			req.apiPrivilegeFacet="admin";
 		}else{
@@ -85,7 +115,7 @@ app.use(function(req,res,next){
 //			req.session.regenerate();
 //		}
 	}
-//	console.log("USING PRIVILEGE FACET: ", req.apiPrivilegeFacet);
+	console.log("USING PRIVILEGE FACET: ", req.apiPrivilegeFacet);
 	next();
 });
 

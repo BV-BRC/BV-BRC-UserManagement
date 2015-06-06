@@ -74,6 +74,7 @@ var Model = exports.Model = declare([ModelBase], {
 		var transport;
 		var _self = this;
 		return when(u, function(user){
+			console.log("user: ", user);
 			console.log("Sending mail to : ", user.email);
 			var mailconf = config.get("email");
 
