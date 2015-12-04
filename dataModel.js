@@ -23,13 +23,13 @@ Object.keys(models).forEach(function(modelId){
 					return when(this.model.query(query,opts), function(response){
 						if (response && response.results) {
 							response.results = response.results.map(function(res){
-								delete res.email
+								delete res.resetCode;
+								delete res.email;
 								delete res.password;
 								return res;	
 							});
 						}
 	
-						console.log('response: ', response);
 						return response
 					});
 				}
@@ -46,6 +46,7 @@ Object.keys(models).forEach(function(modelId){
 					return when(this.model.query(query,opts), function(response){
 						if (response && response.results) {
 							response.results = response.results.map(function(res){
+								delete res.resetCode;
 								delete res.email
 								delete res.password;
 								return res;	
