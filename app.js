@@ -124,6 +124,17 @@ app.use(function(req,res,next){
 
 require("./auth");
 
+app.use("/js/" + package.version + "/", [
+        express.static(path.join(__dirname, 'public/js/release/'), {
+                maxage:"356d",
+                /*etag:false,*/
+                setHeaders: function(res,path){
+                        var d = new Date();
+                        d.setYear(d.getFullYear() + 1);
+                        res.setHeader("Expires", d.toGMTString());
+                }
+        }),
+]);
 app.post("/login", site.login);
 app.get("/login", site.loginForm);
 app.get("/logout", site.logout);
