@@ -20,6 +20,7 @@ var DataModel = require("./dataModel");
 var engine = require('dme');
 var when = require("promised-io/promise").when;
 var validateToken = require("./validateToken");
+var package = require("./package.json");
 
 require('dme/media/');
 
@@ -71,6 +72,7 @@ app.use(function(req,res,next){
     console.log("Session Data: ", req.session);
     req.config = config;
     req.production = config.get("production") || false;
+    req.package = package;
     req.productionLayers=["p3/layer/core"]
     req.applicationOptions = {version: "3.0", workspaceServiceURL:config.get("workspaceServiceURL"),appServiceURL:config.get("appServiceURL"),dataServiceURL:config.get("dataServiceURL"), p3Home: config.get("p3Home") }
     next();
