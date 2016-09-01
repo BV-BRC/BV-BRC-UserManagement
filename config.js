@@ -27,7 +27,7 @@ var defaults =  {
 		"defaultSender": "PATRIC <do-not-reply@patricbrc.org>",
                 "host": "",
                 "port":587
-        },
+        }
 }
 
 module.exports = nconf.argv().env().file("./p3-user.conf").defaults(defaults);
