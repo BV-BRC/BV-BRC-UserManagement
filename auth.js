@@ -9,7 +9,7 @@ var passport = require('passport')
   , db = require('./db')
   , when = require('promised-io/promise').when
   , bcrypt = require('bcrypt')
-  , MD5 = require("MD5")
+  , md5 = require("md5")
   , DataModel = require("./dataModel");
 
 
@@ -29,7 +29,7 @@ passport.use(new LocalStrategy(
 		return done(false);
 	}
 	console.log("Login Check for: ", user.id, user.password, password);
-	if (user.password == MD5(password)) {
+	if (user.password == md5(password)) {
 		return done(null, user);
 	}else {
 		bcrypt.compare(password,user.password, function(err,res){
