@@ -5,7 +5,7 @@
 	<body class="claro patric <% if (request.isAuthenticated && request.isAuthenticated()) { %>Authenticated<% } %>">
 
                 <% include p3header %>
-		<% if ((request.user && (results.id == request.user.id))||(request.user && request.user.roles && (request.user.roles.indexOf("admin")>=0))) { %>
+		<% if (request.user && (results.id == request.user.id)){ %>
 		<div>
 			<div class="UserProfileForm">
 				<h1><%= results.first_name||results.id %>'s User Profile</h1>
@@ -29,6 +29,11 @@
 
 			</div>
 		</div>
+		<% }else if(request.user && request.user.roles && (request.user.roles.indexOf("admin")>=0)){ %>
+			<h2><%= results.id %></h2>
+			<p><%= results.email %></p>
+			<p><%= results.first_name %> <%= results.last_name %></p>
+			<p><%= results.affiliation %></p>
 		<% }else{ %>
 			<h2><%= results.id %></h2>
 			<p><%= results.first_name %> <%= results.last_name %></p>
