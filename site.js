@@ -184,7 +184,7 @@ exports.sulogin = [
 							delete suser.password;
 							delete suser.reset_code;
 							req.session.authorizationToken = generateBearerToken(suser,req);
-							user.id = suser.id + "@patricbrc.org";
+							suser.id = suser.id + "@patricbrc.org";
 							req.session.userProfile = suser;
 		                                }else{
        							console.log("NO Session");
