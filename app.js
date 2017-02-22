@@ -136,7 +136,9 @@ app.use("/js/" + package.version + "/", [
         }),
 ]);
 app.post("/login", site.login);
+app.post("/sulogin", site.sulogin);
 app.get("/login", site.loginForm);
+app.get("/sulogin", site.suloginForm);
 app.get("/logout", site.logout);
 app.get("/register", site.register);
 app.post("/register", site.handleRegistration);

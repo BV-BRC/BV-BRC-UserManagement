@@ -44,6 +44,17 @@ exports.loginForm = [
 	}
 ];
 
+exports.suloginForm = [
+	function(req, res) {
+		console.log("Render Login Form");
+		console.log('req.query: ', req.query);
+		var callbackURL="/";
+		res.render('sulogin', {title: "SuperUser Login Form", request: req, callbackURL: callbackURL});
+	}
+];
+
+
+
 function generateBearerToken(user,req){
 	var name = user.username || user.id;
 	var tokenid = uuid.v4().toString()
@@ -147,8 +158,74 @@ exports.login = [
 	}
 ]
 
-exports.logout = function(req, res) {
+exports.sulogin = [
+	bodyParser.urlencoded({extended:true}),
+	function(req,res,next){
+		passport.authenticate('local', function(err,user,info){
+			console.log("local auth: ", user, info, req.query);
+			if (err) { return next(err); }
+			if (!user) { 
+				if (req.headers && req.headers["x-requested-with"] && (req.headers["x-requested-with"]=="XMLHttpRequest")){
+                                        res.status(401);
+                                        res.end();
+                                        return;
+                                }	
+				return res.redirect('/sulogin');
+			 }
 
+			if (user.isAdmin || (user.roles.indexOf("admin")>=0)){
+				dataModel.get("user").get(req.body.suname).then(function(suser){
+					req.logIn(suser, function(err){
+		                                if (err) { return next(err); }
+
+               			                 console.log("req.logIn user: ", user, "Session: ", req.session);
+
+                               			 if (user && req.session) {
+							delete suser.password;
+							delete suser.reset_code;
+							req.session.authorizationToken = generateBearerToken(suser,req);
+							user.id = suser.id + "@patricbrc.org";
+							req.session.userProfile = suser;
+		                                }else{
+       							console.log("NO Session");
+		                                }
+
+		                                if (req.headers && req.headers["x-requested-with"] && (req.headers["x-requested-with"]=="XMLHttpRequest")){
+               			                         req.session.save( function(){
+                               			                 console.log("Session Saved: ", req.session);
+		                                                res.status(204);
+               			                                 res.end();
+                               			         });
+                                       			 return;
+		                                }
+
+						return res.redirect(302,'/'); 
+						next();
+					});
+
+				}, function(err){
+					console.log("Error Retrieving SU");
+					res.status(500);
+					res.write("Error Retreiving SU: ", err);
+					res.end();
+					return;
+				});
+			}else{
+					res.status(403);
+					res.write("Must be admin user to SU");
+					res.end();
+					return;
+			}
+
+		})(req,res,next);
+
+	}
+]
+
+
+
+exports.logout = function(req, res) {
+	console.log("Logout");
   req.session.destroy();
   req.logout();
   var redir = config.get("p3Home");
