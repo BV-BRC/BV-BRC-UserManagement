@@ -2,22 +2,18 @@
 
     <div class="P3Header" style="display: flex">
         <div style="width: 220px;">
-            <a href="/">
+            <a href="<%- request.config.get("p3Home") %>">
                 <img class="p3LogoImage" src="/js/p3/resources/images/patric_logo_bg.png"/>
                 <span class="logo">PATRIC</span>
-                <span class="appLabel"><%- request.package.version %><%- request.applicationOptions.appLabel || "" %></span>
+                <!--<span class="appLabel"><%- request.package.version %><%- request.applicationOptions.appLabel || "" %></span>-->
             </a>
         </div>
         <div style="vertical-align: top; min-width: 435px; flex: 1">
         </div>
-        <div style="padding: 6px 10px 2px 2px; width: 120px; flex: 0.7">
-            <input style="width:100%;font-size:1em;" class="showOnLoad dijitHidden"
-                   data-dojo-type="p3/widget/GlobalSearch"/>
-        </div>
 
         <div class="HideWithAuth authLinks showOnLoad dijitHidden" style="padding: 3px 2px 0 0; width:125px;">
-            <div class="RegistrationButton registrationLink" data-dojo-type="dijit/form/Button">Register</div>
-            <div class="LoginButton loginLink" data-dojo-type="dijit/form/Button">Login</div>
+            <a href="/register"><div class="RegistrationButton registrationLink" data-dojo-type="dijit/form/Button">Register</div></a>
+            <a href="/login"><div class="LoginButton loginLink" data-dojo-type="dijit/form/Button">Login</div></a>
         </div>
 
         <div class="showOnLoad ShowWithAuth dijitHidden">
