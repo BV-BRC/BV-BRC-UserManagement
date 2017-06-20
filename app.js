@@ -68,13 +68,18 @@ app.use(passport.initialize());
 app.use(passport.session()); // persistent login sessions
 
 app.use(function(req,res,next){
-    console.log("Config.production: ", config.production);
-    console.log("Session Data: ", req.session);
+    // console.log("Config.production: ", config.get("production"));
+    // console.log("Session Data: ", req.session);
     req.config = config;
     req.production = config.get("production") || false;
     req.package = package;
     req.productionLayers=["p3/layer/core"]
-    req.applicationOptions = {version: "3.0", workspaceServiceURL:config.get("workspaceServiceURL"),appServiceURL:config.get("appServiceURL"),dataServiceURL:config.get("dataServiceURL"), p3Home: config.get("p3Home") }
+    req.applicationOptions = {version: "3.0"
+        , workspaceServiceURL:config.get("workspaceServiceURL")
+        , appServiceURL:config.get("appServiceURL")
+        , dataServiceURL:config.get("dataServiceURL")
+        , accountURL: config.get("accountURL")
+        , p3Home: config.get("p3Home") }
     next();
 })
 
