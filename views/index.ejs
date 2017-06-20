@@ -2,7 +2,7 @@
 	<head>
 		<% include header %>
 	</head>
-	<body class="claro">
+	<body class="claro patric <% if (request.isAuthenticated && request.isAuthenticated()) { %>Authenticated<% } %>">
 	<% include p3header %>
 	<h2>User: <%= request.user.id  %> </h2>
 	<p>Email: <%= request.user.email  %></p>
