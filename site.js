@@ -150,7 +150,8 @@ exports.login = [
 //						return res.redirect(302, config.get("patric3_webapp_callbackURL"));
 					}
 				}	
-				return res.redirect(302,'/'); // + user.username);
+				//return res.redirect(302,'/'); // + user.username);
+				return res.redirect(302,config.get("changepw_redirect"));
 				next();
 			});
 
@@ -184,7 +185,7 @@ exports.sulogin = [
 							delete suser.password;
 							delete suser.reset_code;
 							req.session.authorizationToken = generateBearerToken(suser,req);
-							suser.id = suser.id + "@patricbrc.org";
+							user.id = suser.id + "@patricbrc.org";
 							req.session.userProfile = suser;
 		                                }else{
        							console.log("NO Session");
@@ -338,7 +339,7 @@ exports.changePassword = [
 			console.log("SAVE NEW PASSWORD: ", req.body.password);
 			var UserModel = dataModel.get("user");
 			when(UserModel.setPassword(req.change_password_user.id, req.body.password),function(){
-				res.redirect("/");			
+				res.redirect(config.get("changepw_redirect"));			
 			},next);
 		}
 	}

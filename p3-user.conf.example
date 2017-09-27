@@ -10,8 +10,8 @@
                 "db": 1,
                 "pass":""
         },
-        "p3Home": "https://www.alpha.patricbrc.org",
         "patric3_webapp_callbackURL": "http://user.patric.localdev:3002/auth/callback",
+        "changepw_redirect": "/",
 	"signingSubjectURL": "http://user.patric.localdev:3002/public_key",
         "cookieSecret": "patric3",
         "cookieKey": "patric3",
