@@ -36,7 +36,14 @@ Object.keys(models).forEach(function(modelId){
 			})
 			userFacet = new RestrictiveFacet({model: model,
 				get: function(id, opts) {
-					return this.model.get(id,opts);
+					console.log("GET User: ", id);
+					return when(this.model.get(id,opts), function(user){
+						console.log("User: ", user);
+						delete user.resetCode;
+						delete user.email;
+						delete user.password;
+						return user;
+					});
 				},
 				post: function(obj, opts) {
 					return this.model.post(obj,opts);
