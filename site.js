@@ -13,13 +13,8 @@ var when = require("promised-io/promise").when;
 var bcrypt = require('bcrypt');
 
 exports.index = [
-	login.ensureLoggedIn(),
 	function(req, res) {
-		if (req.isAuthenticated() && req.user && req.user.roles && (req.user.roles.indexOf("admin")>=0)){
-			return res.render("admin", { title: "User Administration", request:req });
-		}
-		res.redirect(302, "/user/" + req.user.id);
-//		res.render('index', { title: 'User Service', request: req});
+		res.render('index', { title: 'User Service', request: req});
 	}
 ]
 
@@ -43,17 +38,6 @@ exports.loginForm = [
   		res.render('login', {title: "Login Form", request: req, callbackURL: callbackURL});
 	}
 ];
-
-exports.suloginForm = [
-	function(req, res) {
-		console.log("Render Login Form");
-		console.log('req.query: ', req.query);
-		var callbackURL="/";
-		res.render('sulogin', {title: "SuperUser Login Form", request: req, callbackURL: callbackURL});
-	}
-];
-
-
 
 function generateBearerToken(user,req){
 	var name = user.username || user.id;
@@ -150,8 +134,7 @@ exports.login = [
 //						return res.redirect(302, config.get("patric3_webapp_callbackURL"));
 					}
 				}	
-				//return res.redirect(302,'/'); // + user.username);
-				return res.redirect(302,config.get("changepw_redirect"));
+				return res.redirect(302,'/'); // + user.username);
 				next();
 			});
 
@@ -159,74 +142,8 @@ exports.login = [
 	}
 ]
 
-exports.sulogin = [
-	bodyParser.urlencoded({extended:true}),
-	function(req,res,next){
-		passport.authenticate('local', function(err,user,info){
-			console.log("local auth: ", user, info, req.query);
-			if (err) { return next(err); }
-			if (!user) { 
-				if (req.headers && req.headers["x-requested-with"] && (req.headers["x-requested-with"]=="XMLHttpRequest")){
-                                        res.status(401);
-                                        res.end();
-                                        return;
-                                }	
-				return res.redirect('/sulogin');
-			 }
-
-			if (user.isAdmin || (user.roles.indexOf("admin")>=0)){
-				dataModel.get("user").get(req.body.suname).then(function(suser){
-					req.logIn(suser, function(err){
-		                                if (err) { return next(err); }
-
-               			                 console.log("req.logIn user: ", user, "Session: ", req.session);
-
-                               			 if (user && req.session) {
-							delete suser.password;
-							delete suser.reset_code;
-							req.session.authorizationToken = generateBearerToken(suser,req);
-							user.id = suser.id + "@patricbrc.org";
-							req.session.userProfile = suser;
-		                                }else{
-       							console.log("NO Session");
-		                                }
-
-		                                if (req.headers && req.headers["x-requested-with"] && (req.headers["x-requested-with"]=="XMLHttpRequest")){
-               			                         req.session.save( function(){
-                               			                 console.log("Session Saved: ", req.session);
-		                                                res.status(204);
-               			                                 res.end();
-                               			         });
-                                       			 return;
-		                                }
-
-						return res.redirect(302,'/'); 
-						next();
-					});
-
-				}, function(err){
-					console.log("Error Retrieving SU");
-					res.status(500);
-					res.write("Error Retreiving SU: ", err);
-					res.end();
-					return;
-				});
-			}else{
-					res.status(403);
-					res.write("Must be admin user to SU");
-					res.end();
-					return;
-			}
-
-		})(req,res,next);
-
-	}
-]
-
-
-
 exports.logout = function(req, res) {
-	console.log("Logout");
+
   req.session.destroy();
   req.logout();
   var redir = config.get("p3Home");
@@ -339,7 +256,7 @@ exports.changePassword = [
 			console.log("SAVE NEW PASSWORD: ", req.body.password);
 			var UserModel = dataModel.get("user");
 			when(UserModel.setPassword(req.change_password_user.id, req.body.password),function(){
-				res.redirect(config.get("changepw_redirect"));			
+				res.redirect("/");			
 			},next);
 		}
 	}

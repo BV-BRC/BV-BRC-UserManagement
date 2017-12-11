@@ -6,20 +6,8 @@ var defaults =  {
 	"mongo": {
 		"url": "http://localhost:8983/solr"
 	},
-        "redis": {
-                "host": "127.0.0.1",
-                "port": 6379,
-                "db": 1,
-		"prefix": "",
-                "pass":""
-        },
 	"siteURL": "http://user.patric.local:3002",
-	"patric3_webapp_callbackURL": "http://www.patric.local:3000/auth/callback",
-	"changepw_redirect": "http://www.patric.local:3000/",
-        "//cookieSecret": "patric3",
-        "cookieKey": "JSESSIONID",
-        "cookieDomain": ".patric.local",
-	"signing_PEM": "private.pem",
+       	"signing_PEM": "private.pem",
 	"signing_public_PEM": "public.pem",
 	"realm": "patricbrc.org",
 	"email": {
@@ -28,7 +16,9 @@ var defaults =  {
 		"defaultSender": "PATRIC <do-not-reply@patricbrc.org>",
                 "host": "",
                 "port":587
-        }
+        },
+	"userTokenDuration": 24,
+	"serviceTokenDuration": 24 * 31
 }
 
 module.exports = nconf.argv().env().file("./p3-user.conf").defaults(defaults);

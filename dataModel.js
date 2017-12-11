@@ -1,92 +1,34 @@
-var DataModel = require("dme/DataModel");
-var RestrictiveFacet = require("dme/RestrictiveFacet");
-var PermissiveFacet= require("dme/PermissiveFacet");
+var DataModel = require("dactic/datamodel");
+var RestrictiveFacet = require("dactic/facet/restrictive");
+var PermissiveFacet= require("dactic/facet/permissive");
 var models = require("./models");
-var MongoStore = require("dme/store/mongodb");
+var facets = require("./facets");
+
+var MongoStore = require("dactic-store-mongodb");
 var config = require("./config");
 var when = require('promised-io/promise').when;
+
 var dataModel = new DataModel({});
 
-console.log("Found Models: ", models);
+var facetTypes = ["public","user","admin"];
 
 Object.keys(models).forEach(function(modelId){
-	var mongoStore = new MongoStore(modelId,{url: config.get("mongo").url});
-	var model = new models[modelId].Model(mongoStore,{});
-	var publicFacet,userFacet;
-	switch(modelId){
-		case "user":
-			publicFacet = new RestrictiveFacet({model: model,
-				get: function(id, opts) {
-					return this.model.get(id,opts);
-				},
-				query: function(query,opts){
-					return when(this.model.query(query,opts), function(response){
-						if (response && response.results) {
-							response.results = response.results.map(function(res){
-								delete res.resetCode;
-								delete res.email;
-								delete res.password;
-								return res;	
-							});
-						}
-	
-						return response
-					});
-				}
-			})
-			userFacet = new RestrictiveFacet({model: model,
-				get: function(id, opts) {
-					console.log("GET User: ", id);
-					return when(this.model.get(id,opts), function(user){
-						console.log("User: ", user);
-						delete user.resetCode;
-						delete user.email;
-						delete user.password;
-						return user;
-					});
-				},
-				post: function(obj, opts) {
-					return this.model.post(obj,opts);
-				},
-	
-				query: function(query,opts){
-					return when(this.model.query(query,opts), function(response){
-						if (response && response.results) {
-							response.results = response.results.map(function(res){
-								delete res.resetCode;
-								delete res.email
-								delete res.password;
-								return res;	
-							});
-						}
-	
-						console.log('response: ', response);
-						return response
-					});
-				},
+        var mongoStore = new MongoStore(modelId,{url: config.get("mongo").url,primaryKey: "id"});
+	console.log("Setup Model: ", modelId);
+        var model = new models[modelId](mongoStore,{});
+        var mf = {}
 
-				notify: function(event,message,subject,opts){
-					var req = opts.req || {};
-					if (req.user && req.user.id) {
-						console.log("Mail To: ", req.user.id);
-						return when(this.model.mail(req.user.id.replace("@patricbrc.org",""),message, "[PATRIC-" + event + "] " + subject,opts), function(){
-							return {results: "Notification Sent"}
-						});
-					}else{
-						opts.res.status(403);
-						throw Error("Forbidden");
-					}
-				}
-			})
-			break;	
-		default: 
-			publicFacet = new RestrictiveFacet({});
-			userFacet = new RestrictiveFacet({});
-			break;
-	}
-	dataModel.set(modelId,model,{public:publicFacet, user:userFacet ,admin:new PermissiveFacet({model:model})});	
+        facetTypes.forEach(function(type){
+            if (facets[modelId] && facets[modelId][type]){
+                mf[type] = facets[modelId][type](model);
+            }else if (type=="admin"){
+                mf[type] = new PermissiveFacet({model:model});
+            }else{
+                mf[type] = new RestrictiveFacet({model:model});
+            }
+        })
+
+        dataModel.set(modelId,model,mf);
 });
 
 module.exports = dataModel;
-
-

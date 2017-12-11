@@ -1,10 +1,10 @@
+		<title><%= (request&&request.local&&request.local.title)?request.local.title:"" %></title>
 		<% if (request && request.production) { %>
-			<link rel='stylesheet' href='/js/<%- request.package.version %>/p3/resources/p3.css' />
+			<link rel='stylesheet' href='/js/<%- request.package.version %>/dojo/resources/dojo.css' />
+			<link rel='stylesheet' href='/js/<%- request.package.version %>/dijit/themes/claro/claro.css' />
+
 		<% } else { %>
-			<link rel='stylesheet' href='/js/p3/resources/p3.css' />
+			<link rel='stylesheet' href='/js/dojo/resources/dojo.css' />
+			<link rel='stylesheet' href='/js/dijit/themes/claro/claro.css' />
 		<% } %>
-		<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-		<meta name="Keywords" content="PATRIC, Pathosystems Resource Integration Center"/>
-		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<link rel="manifest" href="/public/manifest.json">
 
