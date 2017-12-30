@@ -11,6 +11,8 @@
     "bson": "^0.2.17",
     "cors": "^2.5.2",
     "debug": "^2.0.0",
+    "dactic": "0.8.5",
+    "dactic-store-mongodb": "1.0.5",
     "dme": "2.0.5",
     "ejs": "~0.8.5",
     "express": "~4.9.0",

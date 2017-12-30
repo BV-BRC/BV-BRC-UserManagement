@@ -1,4 +1,3 @@
-var declare = require("dojo-declare/declare");
 var when = require("promised-io/promise").when;
 var defer = require("promised-io/promise").defer;
 var config = require("../config");

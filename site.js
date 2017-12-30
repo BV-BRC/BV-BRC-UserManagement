@@ -1,8 +1,8 @@
 /**
  * Module dependencies.
  */
-var passport = require('passport');
-var login = require('connect-ensure-login');
+//var passport = require('passport');
+//var login = require('connect-ensure-login');
 var fs = require("fs-extra");
 var bodyParser = require('body-parser');
 var config = require("./config");
@@ -17,7 +17,7 @@ exports.index = [
 		res.render('index', { title: 'User Service', request: req});
 	}
 ]
-
+/*
 exports.loginForm = [
 	function(req, res) {
 		console.log("Render Login Form");
@@ -314,3 +314,4 @@ exports.simpleAuth= [
 		});
 	}
 ]
+*/
