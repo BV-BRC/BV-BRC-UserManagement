@@ -12,12 +12,12 @@ var util = require("util");
 var Result = require("dactic/result");
 
 
-
 function resetMessage(resetCode,email) {
         console.log("Generate Reset Message");
 	var siteUrl = config.get("siteURL");
         console.log("Reset Code: ", resetCode);
      	var msg = "Click the following link or paste into your browser to Reset Your Password \n\n\t"+ siteUrl + "/reset/" + email +"/"  + resetCode 
+	console.log("Reset Message: ", msg);
         return msg;
 }
 
@@ -143,7 +143,7 @@ Model.prototype.get = function(id, opts){
 		if (user){
 			return new Result(user);
 		}else{
-			return new errors.NotFound("User Not Found");
+			throw new errors.NotFound("User Not Found");
 		}
 	});
 }
@@ -226,29 +226,49 @@ Model.prototype.mail=function(userId,message,subject,options){
 }
 
 
-Model.prototype.resetAccount= function(id,opts){
+Model.prototype.resetAccount = function(id,opts){
 	var _self=this;
 	opts = opts || {}
 	console.log("Reset Account: ", id);
 	var patch = [{ "op": "add", "path": "/resetCode", "value": randomstring.generate(5).toUpperCase() }]
 	return when(_self.patch(id,patch), function(){
-
+		console.log("Reset Account Patch Completed");
 		return when(_self.get(id), function(ruser){
+			console.log("REGET User: ", ruser);
 			var user = ruser.getData();
+			if (!user){
+				throw new errors.NotFound(id + " Not Found");
+			}
 			console.log("POST PATCH USER: ", user);
 
 			var msg = resetMessage(user.resetCode,user.email);
 
 			if (opts.mail_user){
-				return (_self.mail(user, msg, "Password Reset"), function(){
+				console.log("Mail User Reset Link");
+				return (_self.mail(user.id, msg, "Password Reset"), function(){
 					_self.emit("message",{action: "update", item: user});
 					return new Result(user);
 				})
 			}else{
 				return new Result(user);
 			}
+		}, function(err){
+			return err;
 		})
 	})
+}
+
+Model.prototype.validatePassword = function(id,password,opts){
+	return	when(this.get(id), function(ruser){
+		var user = ruser.getData();
+		var def = new defer();
+		bcrypt.compare(password,user.password, function(err,response){
+			if (err) { return def.resolve(new Result(false)); }
+			if (response){ return def.resolve(new Result(user)) }
+			def.resolve(new Result(false));	
+		});
+		return def.promise;
+	});
 }
 
 Model.prototype.setPassword = function(id, password, opts){
@@ -263,14 +283,14 @@ Model.prototype.setPassword = function(id, password, opts){
 		var patch = [
 			{ "op": "add", "path": "/password", "value": pw},
 			{ "op": "replace", "path": "/updatedBy", "value": "system" },
-			{ "op": "remove", "path": "/resetCode"},
+			{ "op": "add", "path": "/resetCode", "value": ""},
 			{ "op": "replace", "path": "/updateDate", "value": new Date().toISOString() }
 		]
 
 		opts.overwrite=true
 		when(_self.patch(id,patch, opts), function(res){
 			console.log("User " + id + " changed password.");
-			def.resolve(true);
+			def.resolve(new Result("Password Changed"));
 		}, function(err){
 			console.log("Errr Posting Updated Password to db: ", err);
 			def.reject(err);
@@ -301,4 +321,6 @@ Model.prototype.post = function(obj,opts){
 	});
 
 }
+
+
 

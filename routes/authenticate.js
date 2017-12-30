@@ -14,25 +14,57 @@ var bcrypt = require("bcrypt");
 router.post('/', [
 	bodyParser.urlencoded({extended:true}),
 	function(req, res, next) {
-		console.log("Authenticate User Token: ", req.body);
 
 		if (!req.body.username || !req.body.password){
 			return next(new errors.Unauthorized("Missing Username or Password"));
 		}
 
+		when(UserModel.validatePassword(req.body.username,req.body.password), function(ruser){
+			var user = ruser.getData();
+			if (user) {
+				var token = generateToken(user,"user")	
+				res.status(200);
+				res.send(token);
+				res.end();
+				return;
+			}else{
+				next(errors.Unauthorized("Invalid Password"));
+			}
+		});
+	}
+]);
+
+/* Superuser Login */
+router.post('/sulogin', [
+	bodyParser.urlencoded({extended:true}),
+	function(req, res, next) {
+		console.log("Authenticate User Token: ", req.body);
+
+		if (!req.body.username || !req.body.password || !req.body.targetUser){
+			return next(new errors.Unauthorized("Missing Username, Password, or Target User"));
+		}
+
 		console.log("Get User: ", req.body.username);
 		when(UserModel.get(req.body.username), function(ruser){
 			var user = ruser.getData();
-			console.log("user: ", user);
-			console.log("Check Password: ", req.body.password, " User Enc Pass: ", user.password);
+			console.log("Got User: ", user);
+			if (!user || !user.roles || (user.roles.length<1) || (user.roles.indexOf("admin")<0)){
+				return next(errors.Unauthorized());
+			}
+
 			bcrypt.compare(req.body.password,user.password, function(err,response){
 				if (err) { next(errors.Unauthorized(err)); }
 				if (response) {
-					var token = generateToken(user,"user")	
-					res.status(200);
-					res.send(token);
-					res.end();
-					return;
+					when(UserModel.get(req.body.targetUser), function(tres){
+						var tuser = tres.getData();
+						var token = generateToken(tuser,"user")	
+						res.status(200);
+						res.send(token);
+						res.end();
+						return;
+					}, function(){
+						next(errors.InvalidRequest("Invalid Target User"));
+					});
 				}
 				next(errors.Unauthorized());
 			})
@@ -40,6 +72,7 @@ router.post('/', [
 	}
 ]);
 
+/* Refresh a valid token */
 router.get('/refresh', 
 	function(req, res, next) {
 		if (!req.user){
@@ -61,6 +94,7 @@ router.get('/refresh',
 	}
 );
 
+/* get a 'service' token with a valid user and application token */
 router.post('/service', [
 	bodyParser.urlencoded({extended:true}),
 	function(req, res, next) {

@@ -43,7 +43,7 @@ app.set('view engine', 'ejs');
 // uncomment after placing your favicon in /public
 //app.use(favicon(__dirname + '/public/favicon.ico'));
 app.use(logger('dev'));
-app.use(cors({origin: true, methods: ["GET,PUT,PATCH,POST,PUT,DELETE"], allowHeaders: ["content-type", "authorization"],exposedHeaders: ['Content-Range', 'X-Content-Range'], credential: true, maxAge: 8200}));
+app.use(cors({origin: true, methods: ["GET,PUT,PATCH,POST,PUT,DELETE"], allowHeaders: ["accept","content-type", "authorization"],exposedHeaders: ['Content-Range', 'X-Content-Range',"Content-type"], credential: true, maxAge: 8200}));
 
 app.use(function(req,res,next){
     req.config = config;
@@ -53,17 +53,10 @@ app.use(function(req,res,next){
 
 app.use(token);
 
-// app.get("/reset/:email/:code", site.performResetWithCode);
-// app.get("/reset_password", site.requestResetPassword);
-// app.post("/reset_password", site.resetPassword);
-// app.get("/change_password", site.changePasswordForm);
-// app.post("/change_password", site.changePassword);
-
 // app.post("/validate", site.validateUserCredentials);
 app.use("/register", register);
 app.use("/reset", reset);
 app.use("/authenticate", authenticate);
-
 app.get("/public_key", [
 	function(req,res,next){
 		var pubKeyFile = config.get('signing_public_PEM');

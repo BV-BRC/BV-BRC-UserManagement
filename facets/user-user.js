@@ -2,6 +2,7 @@ var config = require("../config");
 var when = require('promised-io/promise').when;
 var errors = require("dactic/errors");
 var RestrictiveFacet = require("dactic/facet/restrictive");
+var Result=require("dactic/result");
 
 module.exports = function(model, opts){
         return new RestrictiveFacet({
@@ -12,13 +13,22 @@ module.exports = function(model, opts){
 				console.log("opts.req.user.id:", opts.req.user.id);
 				var user = response.getData();
 				if (opts.req.user && opts.req.user.id && (opts.req.user.id==user.id)){
-					delete response.resetCode;
-					delete response.email;
-					delete response.password
-					return response;
+					delete user.resetCode;
+					delete user.password
+					return  new Result(user);
+				} else {
+					var u = {
+						id: user.id,
+						first_name: user.first_name,
+						last_name: user.last_name,
+						affiliation: user.affiliation,
+						organisms: user.organisms
+					}
+					return new Result(u);	
 				}
+			}, function(err){
+				return new errors.NotFound(err);
 			});
-			//return this.model.get(id,opts);
 		},
 
 		patch: function(id,patch,opts) {
@@ -31,7 +41,7 @@ module.exports = function(model, opts){
 					return when(_self.model.patch(user.id,patch,opts), function(){
 						return true;
 					}, function(err){
-						return new errors.InvalidRequest(err);
+						return new errors.NotAcceptable(err);
 					});
 				}else{
 					throw new errors.Unauthorized();
@@ -39,40 +49,59 @@ module.exports = function(model, opts){
 			});
 		},
 	
-		post: function(obj, opts) {
-			return this.model.post(obj,opts);
-		},
-	
 		query: function(query,opts){
 			return when(this.model.query(query,opts), function(response){
-				if (response && response.results) {
-					response.results = response.results.map(function(res){
-						delete res.resetCode;
-						delete res.email
-						delete res.password;
-						return res;	
+
+				var users = response.getData();
+				if (users && users.length>0){
+					users = users.map(function(user){
+						return {
+							id: user.id,
+							first_name: user.first_name,
+							last_name: user.last_name,
+							affiliation: user.affiliation,
+							organisms: user.organisms
+						}
 					});
+				}else{
+					users = [];
 				}
 
-				console.log('response: ', response);
-				return response
+				return new Result(users,response.getMetadata());
+				
 			});
 		},
-/*
-		notify: function(event,message,subject,opts){
-			var req = opts.req || {};
-			if (req.user && req.user.id) {
-				console.log("Mail To: ", req.user.id);
-				return when(this.model.mail(req.user.id.replace("@patricbrc.org",""),message, "[PATRIC-" + event + "] " + subject,opts), function(){
-					return {results: "Notification Sent"}
-				});
-			}else{
-				opts.res.status(403);
-				throw Error("Forbidden");
-			}
-		}
-*/
 
+		setPassword: function(id,currentPW,password,opts){
+			if (!opts || !opts.req || !opts.req.user || !opts.req.user.id){
+				throw new errors.Unathorized();
+			}
+
+			if (!id || (id != opts.req.user.id)){
+				throw new errors.Unauthorized();
+			}
+
+			if (!currentPW){
+				throw new errors.NotAcceptable("Must Include current password");
+			}
+
+			if (!password){
+				throw new errors.NotValid("Invalid Password");
+			}
+
+			return when(this.model.validatePassword(id,currentPW), function(vres){
+				var valid = vres.getData();
+				if (valid){
+					return when(this.model.setPassword(id,password,opts), function(R){
+						return R
+					}, function(err){
+						return err;
+					})
+				}else{
+					throw new errors.Unauthorized("Invalid Curent Password");
+				}
+			});
+		}
         });
 }
 

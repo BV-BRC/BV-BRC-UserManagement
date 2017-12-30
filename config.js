@@ -7,6 +7,7 @@ var defaults =  {
 		"url": "http://localhost:8983/solr"
 	},
 	"siteURL": "http://user.patric.local:3002",
+	"p3Home": "http://patricbrc.org",
        	"signing_PEM": "private.pem",
 	"signing_public_PEM": "public.pem",
 	"realm": "patricbrc.org",
