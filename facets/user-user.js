@@ -89,10 +89,11 @@ module.exports = function(model, opts){
 				throw new errors.NotValid("Invalid Password");
 			}
 
+			var _self=this;
 			return when(this.model.validatePassword(id,currentPW), function(vres){
 				var valid = vres.getData();
 				if (valid){
-					return when(this.model.setPassword(id,password,opts), function(R){
+					return when(_self.model.setPassword(id,password,opts), function(R){
 						return R
 					}, function(err){
 						return err;

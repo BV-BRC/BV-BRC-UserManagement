@@ -43,7 +43,7 @@ app.set('view engine', 'ejs');
 // uncomment after placing your favicon in /public
 //app.use(favicon(__dirname + '/public/favicon.ico'));
 app.use(logger('dev'));
-app.use(cors({origin: true, methods: ["GET,PUT,PATCH,POST,PUT,DELETE"], allowHeaders: ["accept","content-type", "authorization"],exposedHeaders: ['Content-Range', 'X-Content-Range',"Content-type"], credential: true, maxAge: 8200}));
+app.use(cors({origin: true, methods: ["GET","PUT","patch","PATCH","POST","PUT","DELETE"], allowHeaders: ["accept","content-type", "authorization"],exposedHeaders: ['Content-Range', 'X-Content-Range',"Content-type"], credential: true, maxAge: 8200}));
 
 app.use(function(req,res,next){
     req.config = config;
