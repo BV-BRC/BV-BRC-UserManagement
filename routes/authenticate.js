@@ -28,8 +28,10 @@ router.post('/', [
 				res.end();
 				return;
 			}else{
-				next(errors.Unauthorized("Invalid Password"));
+				next(errors.Unauthorized("Invalid username, email, o r password"));
 			}
+		}, function(err){
+			next(errors.Unauthorized("Invalid username, email, or password"));
 		});
 	}
 ]);

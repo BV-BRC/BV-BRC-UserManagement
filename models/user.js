@@ -136,7 +136,7 @@ Model.prototype.registerUser = function(user){
 }
 
 Model.prototype.get = function(id, opts){
-	console.log("GET(",id,")");
+	//console.log("GET(",id,")");
 	return when(this.query("or(eq(id," + encodeURIComponent(id) +"),eq(email,"+encodeURIComponent(id)+"))&limit(1)"), function(res){
 		//console.log("get user res: ", res)
 		var user = res.getData()[0];
