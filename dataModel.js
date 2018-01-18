@@ -36,16 +36,28 @@ Object.keys(models).forEach(function(modelId){
 			})
 			userFacet = new RestrictiveFacet({model: model,
 				get: function(id, opts) {
-					console.log("GET User: ", id);
 					return when(this.model.get(id,opts), function(user){
-						console.log("User: ", user);
 						delete user.resetCode;
-						delete user.email;
 						delete user.password;
+
+						var uid;
+
+						if (opts && opts.req && opts.req.user){
+							uid = opts.req.user.id.replace("@patricbrc.org","");
+						}
+
+						//console.log("User Get ID: ", (opts && opts.req && opts.req.user)?opts.req.user.id:"No user in profile");
+						//if (!opts || !opts.req || !opts.req.user || (opts.req.user.id!=id)){
+						if (!uid || (uid!=id)){
+							delete user.email;
+						}
 						return user;
 					});
 				},
 				post: function(obj, opts) {
+					if (!opts || !opts.req || !opts.req.user || (opts.req.user.id!=obj.id)) {
+						throw new Error("Permission Denied"); 
+					}
 					return this.model.post(obj,opts);
 				},
 	
@@ -60,7 +72,6 @@ Object.keys(models).forEach(function(modelId){
 							});
 						}
 	
-						console.log('response: ', response);
 						return response
 					});
 				},
