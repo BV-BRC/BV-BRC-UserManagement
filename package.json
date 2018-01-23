@@ -17,7 +17,7 @@
     "debug": "^2.0.0",
     "dme": "2.0.5",
     "dojo-declare": "*",
-    "ejs": "~0.8.5",
+    "ejs": "^2.5.7",
     "express": "~4.9.0",
     "express-session": "^1.9.1",
     "express-session-unsigned": "^1.0.0",
