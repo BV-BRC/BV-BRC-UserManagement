@@ -36,13 +36,13 @@ var validateToken =function(token){
 	});
 
 	return when(getSigner(parsedToken.SigningSubject), function(signer){
-		console.log("Got Signer Cert: ", signer);
-		console.log("Signature: ", parsedToken.sig);	
+		// console.log("Got Signer Cert: ", signer);
+		// console.log("Signature: ", parsedToken.sig);
 		var verifier = crypto.createVerify("RSA-SHA1");
-		console.log("data: ", baseToken.join("|"));
+		// console.log("data: ", baseToken.join("|"));
 		verifier.update(baseToken.join("|"));
 		var success = verifier.verify(signer.toString("ascii"),parsedToken.sig,"hex") 
-		console.log("validation success: ", success);
+		// console.log("validation success: ", success);
 		return success;
 	}, function(err){
 		console.log("Error retrieving SigningSubject: ", parsedToken.SigningSubject);
@@ -65,7 +65,7 @@ module.exports= function(token){
        			user.id =  matches[1];
 		}
 
-		console.log("User from Token: ", user);
+		// console.log("User from Token: ", user);
 		if (user && user.id) {
 			return user;
 		}
