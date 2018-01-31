@@ -10,12 +10,14 @@ getSigner = function(signer){
 	var def = new defer();
 	if (ss_cache[signer]){
 		def.resolve(ss_cache[signer]);
+		return def.promise;
 	}
 	request.get({url:signer,json:true}, function(err,response,body){
 		if (err) { return def.reject(err); }
 		if (!body) { return def.reject("Empty Signature"); }
-		console.log("body: ", body);
-		console.log("Signature: ", body.pubkey);
+		// console.log("body: ", body);
+		// console.log("Signature: ", body.pubkey);
+		ss_cache[signer] = body.pubkey
 		def.resolve(body.pubkey);
 	});
 	return def.promise;
