@@ -49,26 +49,30 @@ router.post('/sulogin', [
 		console.log("Get User: ", req.body.username);
 		when(UserModel.get(req.body.username), function(ruser){
 			var user = ruser.getData();
-			console.log("Got User: ", user);
+			console.log("Got Login User: ", user);
 			if (!user || !user.roles || (user.roles.length<1) || (user.roles.indexOf("admin")<0)){
 				return next(errors.Unauthorized());
 			}
 
 			bcrypt.compare(req.body.password,user.password, function(err,response){
-				if (err) { next(errors.Unauthorized(err)); }
-				if (response) {
-					when(UserModel.get(req.body.targetUser), function(tres){
-						var tuser = tres.getData();
-						var token = generateToken(tuser,"user")	
-						res.status(200);
-						res.send(token);
-						res.end();
-						return;
-					}, function(){
-						next(errors.InvalidRequest("Invalid Target User"));
-					});
-				}
-				next(errors.Unauthorized());
+				console.log("Authenticated");
+				if (err) { console.log("Invalid Password"); next(errors.Unauthorized(err)); }
+				when(UserModel.get(req.body.targetUser), function(tres){
+					if (!tres){
+						return next(errors.NotAcceptable("Invalid Target User"));
+					}
+					var tuser = tres.getData();
+
+						
+					console.log("Target User: ", tuser);
+					var token = generateToken(tuser,"user")	
+					res.status(200);
+					res.send(token);
+					res.end();
+					return;
+				}, function(){
+					next(errors.NotAcceptable("Invalid Target User"));
+				});
 			})
 		});
 	}
@@ -126,7 +130,7 @@ router.post('/service', [
 					return;
 				}
 			}, function(err){
-				return next(new errors.InvalidRequest(err));
+				return next(new errors.NotAcceptable(err));
 			});
 		})
 	}
