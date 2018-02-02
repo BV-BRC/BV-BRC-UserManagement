@@ -13,7 +13,6 @@ module.exports = function(model, opts){
 				console.log("opts.req.user.id:", opts.req.user.id);
 				var user = response.getData();
 				delete user.resetCode;
-				delete user.email;
 				delete user.password
 				return  new Result(user);
 			}, function(err){
