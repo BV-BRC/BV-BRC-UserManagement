@@ -28,7 +28,7 @@ router.post('/', [
 				res.end();
 				return;
 			}else{
-				next(errors.Unauthorized("Invalid username, email, o r password"));
+				next(errors.Unauthorized("Invalid username, email, or password"));
 			}
 		}, function(err){
 			next(errors.Unauthorized("Invalid username, email, or password"));
