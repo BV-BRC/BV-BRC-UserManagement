@@ -91,8 +91,11 @@ Model.prototype.schema={
 		},
 
 		roles: {
-			type: "string",
-			description: ""
+			type: "array",
+			description: "",
+			items: {
+				type: "string"
+			}
 		}
 	},
 	required: ["id","email", "first_name", "last_name"],
@@ -100,7 +103,7 @@ Model.prototype.schema={
 
 Model.prototype.registerUser = function(user){
 		var _self=this;
-		console.log("registerUser this: ");
+		//console.log("registerUser this: ");
 		var siteUrl = config.get("siteURL");
 		var newUser = user; //{name: user.name, email: user.email}
 		var username = user.username;
@@ -124,7 +127,7 @@ Model.prototype.registerUser = function(user){
 					console.log("User Registered: ", newUser, " Resetting Account: ",newUser.id);
 					return when(_self.resetAccount(newUser.id,{mail_user: false}), function(resetResults){
 						var resetUser=resetResults.getData();
-						console.log("resetUser: ", resetUser);
+						//console.log("resetUser: ", resetUser);
 						return when(_self.mail(newUser.id,"Click the following link or paste into your browser to Complete Registration\n\n\t " + siteUrl + "/reset/" + encodeURIComponent(newUser.email) +"/" + resetUser.resetCode ,"PATRIC Registration",{}), function(){
 							console.log("Registration Complete: ", resetUser);
 							return resetUser;
@@ -160,7 +163,7 @@ Model.prototype.mail=function(userId,message,subject,options){
 		var _self = this;
 		return when(u, function(gres){
 			var user = gres.getData();
-			console.log("user: ", user);
+			//console.log("user: ", user);
 			console.log("Sending mail to : ", user.email);
 			var mailconf = config.get("email");
 
@@ -232,14 +235,14 @@ Model.prototype.resetAccount = function(id,opts){
 	console.log("Reset Account: ", id);
 	var patch = [{ "op": "add", "path": "/resetCode", "value": randomstring.generate(5).toUpperCase() }]
 	return when(_self.patch(id,patch), function(){
-		console.log("Reset Account Patch Completed");
+		//console.log("Reset Account Patch Completed");
 		return when(_self.get(id), function(ruser){
-			console.log("REGET User: ", ruser);
+			//console.log("REGET User: ", ruser);
 			var user = ruser.getData();
 			if (!user){
 				throw new errors.NotFound(id + " Not Found");
 			}
-			console.log("POST PATCH USER: ", user);
+			//console.log("POST PATCH USER: ", user);
 
 			var msg = resetMessage(user.resetCode,user.email);
 
@@ -302,7 +305,6 @@ Model.prototype.setPassword = function(id, password, opts){
 Model.prototype.post = function(obj,opts){
 	var _self=this;
         opts=opts||{}
-        console.log("Model Post: ", obj);
 	obj.id = opts.id
 	opts.overwrite=false;
 	
@@ -312,15 +314,24 @@ Model.prototype.post = function(obj,opts){
 	obj.createdBy = (opts && opts.req && opts.req.user)?opts.req.user.id:"system";
 	obj.updatedBy = obj.createdBy;
 	var out = _self.mixinObject({},obj);
-	console.log("Adding New User: ",out)
-	return when(_self.store.put(out,opts), function(res){
-		console.log("model post() self.store.put() results: ", res);
+	return when(_self.put(out,opts), function(res){
 		return new Result(out);
 	},function(err){
 		console.log("Error Creating User: ", err);
 	});
 
 }
+
+Model.prototype.put=function(obj,opts){
+        if (typeof obj.creationDate != "string"){
+                obj.creationDate = obj.creationDate.toISOString()
+        }
+
+        obj.updateDate = new Date().toISOString();
+	return ModelBase.prototype.put.apply(this,[obj,opts]);
+}
+
+
 
 
 
