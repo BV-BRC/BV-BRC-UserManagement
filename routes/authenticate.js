@@ -130,11 +130,7 @@ router.post('/service', [
 					return;
 				}
 			}, function(err){
-<<<<<<< HEAD
-				return next(new errors.BadRequest(err));
-=======
 				return next(new errors.NotAcceptable(err));
->>>>>>> 77c408a05246a6d1e20cb14d492d0b675d95d9c0
 			});
 		})
 	}
