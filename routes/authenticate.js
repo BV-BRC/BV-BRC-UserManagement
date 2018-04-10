@@ -65,7 +65,7 @@ router.post('/sulogin', [
 						res.end();
 						return;
 					}, function(){
-						next(errors.InvalidRequest("Invalid Target User"));
+						next(errors.BadRequest("Invalid Target User"));
 					});
 				}
 				next(errors.Unauthorized());
@@ -126,7 +126,7 @@ router.post('/service', [
 					return;
 				}
 			}, function(err){
-				return next(new errors.InvalidRequest(err));
+				return next(new errors.BadRequest(err));
 			});
 		})
 	}

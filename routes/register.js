@@ -17,7 +17,7 @@ router.post('/', [
 	function(req, res, next) {
 
 		if (!req.body || !req.body.username || !req.body.email || !req.body.first_name || !req.body.last_name){
-			return next(new errors.InvalidRequest("Missing required fields"));
+			return next(new errors.BadRequest("Missing required fields"));
 		}
 
 		console.log("Registering New User: ", req.body.username, req.body.email);
