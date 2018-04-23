@@ -7,3 +7,6 @@
 [submodule "public/js/util"]
 	path = public/js/util
 	url = https://github.com/dojo/util.git
+[submodule "public/js/dojox"]
+	path = public/js/dojox
+	url = https://github.com/dojo/dojox.git
