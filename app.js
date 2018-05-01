@@ -47,9 +47,23 @@ app.use(cors({origin: true, methods: ["GET","PUT","patch","PATCH","POST","PUT","
 
 app.use(function(req,res,next){
     req.config = config;
+    req.production = config.get("production")||false;
     req.package = package;
     next();
 })
+
+
+app.use('/js/' + package.version + '/', [
+        express.static(path.join(__dirname, 'public/js/release/'), {
+                maxage: '356d',
+                /*etag:false,*/
+                setHeaders: function(res, path) {
+                        var d = new Date();
+                        d.setYear(d.getFullYear() + 1);
+                        res.setHeader('Expires', d.toGMTString());
+                }
+        })
+]);
 
 app.use(token);
 
