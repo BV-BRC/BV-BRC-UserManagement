@@ -3,6 +3,23 @@ var uuid = require('node-uuid')
 var crypto = require('crypto')
 var moment = require('moment')
 
+var path = require('path')
+var fs = require('fs')
+var SigningPEM
+if (config.get('signing_PEM')) {
+  var f = config.get('signing_PEM')
+  if (f.charAt(0) !== '/') {
+    f = path.join(__dirname, f)
+  }
+  try {
+    // console.log('Filename: ', f)
+    SigningPEM = fs.readFileSync(f)
+    if (SigningPEM) { console.log('Found Signing Provate Key File') }
+  } catch (err) {
+    console.log('Could not find Private PEM File: ', f, err)
+  }
+}
+
 module.exports = function generateBearerToken (user, scope) {
   scope = scope || 'user'
 

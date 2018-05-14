@@ -6,7 +6,7 @@ var facets = require('./facets')
 
 var MongoStore = require('dactic-store-mongodb')
 var config = require('./config')
-var when = require('promised-io/promise').when
+// var when = require('promised-io/promise').when
 
 var dataModel = new DataModel({})
 
@@ -21,7 +21,7 @@ Object.keys(models).forEach(function (modelId) {
   facetTypes.forEach(function (type) {
     if (facets[modelId] && facets[modelId][type]) {
       mf[type] = facets[modelId][type](model)
-    } else if (type == 'admin') {
+    } else if (type === 'admin') {
       mf[type] = new PermissiveFacet({model: model})
     } else {
       mf[type] = new RestrictiveFacet({model: model})
