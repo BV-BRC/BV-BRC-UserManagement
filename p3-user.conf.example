@@ -1,18 +1,12 @@
 {
-        "http_port": 3002,
+  "http_port": 3002,
+  "production": true,
+  "mongo": {
+    "url": "mongodb://"
+  },
 
-        "mongo": {
-                "url": "http://localhost:8983/solr"
-        },
-        "redis": {
-                "host": "127.0.0.1",
-                "port": 6379,
-                "db": 1,
-                "pass":""
-        },
-        "patric3_webapp_callbackURL": "http://user.patric.localdev:3002/auth/callback",
-	"signingSubjectURL": "http://user.patric.localdev:3002/public_key",
-        "cookieSecret": "patric3",
-        "cookieKey": "patric3",
-        "cookieDomain": ".patric.localdev"
+  "signingSubjectURL": "http://user.patric.localdev:3002/public_key",
+
+  "userTokenDuration": 4320,
+  "serviceTokenDuration": 4320,
 }

@@ -8,17 +8,17 @@
  * @return {String}
  * @api private
  */
-exports.uid = function(len) {
+exports.uid = function (len) {
   var buf = []
-    , chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-    , charlen = chars.length;
+  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  var charlen = chars.length
 
   for (var i = 0; i < len; ++i) {
-    buf.push(chars[getRandomInt(0, charlen - 1)]);
+    buf.push(chars[getRandomInt(0, charlen - 1)])
   }
 
-  return buf.join('');
-};
+  return buf.join('')
+}
 
 /**
  * Return a random int, used by `utils.uid()`
@@ -29,6 +29,6 @@ exports.uid = function(len) {
  * @api private
  */
 
-function getRandomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+function getRandomInt (min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min
 }
