@@ -6,24 +6,9 @@ var Defer = require('promised-io/promise').defer
 var when = require('promised-io/promise').when
 var config = require('./config')
 var fs = require('fs')
-var SigningPublicPEM
 var ssCache = {}
 
 var mySigningSubject = config.get('signingSubjectURL')
-
-if (config.get('signing_public_PEM')) {
-  var f = config.get('signing_public_PEM')
-  if (f.charAt(0) !== '/') {
-    f = path.join(__dirname, f)
-  }
-  try {
-    console.log('Filename: ', f)
-    SigningPublicPEM = fs.readFileSync(f, 'utf-8')
-    if (SigningPublicPEM) { console.log('Found Singing Public Key File') }
-  } catch (err) {
-    console.log('Could not find Public PEM File: ', f, err)
-  }
-}
 
 var getSigner = function (signer) {
   var def = new Defer()
