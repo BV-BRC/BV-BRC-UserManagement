@@ -8,7 +8,8 @@ module.exports = function (model, opts) {
   return new RestrictiveFacet({
     model: model,
     get: function (id, opts) {
-      return when(this.model.get(id, opts), function (response) {
+      var decodedId = decodeURIComponent(id);
+      return when(this.model.get(decodedId, opts), function (response) {
         console.log('Facet returning response: ', response)
         console.log('opts.req.user.id:', opts.req.user.id)
         var user = response.getData()
