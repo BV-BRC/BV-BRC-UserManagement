@@ -1,4 +1,4 @@
-var config = require('../config')
+// var config = require('../config')
 var when = require('promised-io/promise').when
 var errors = require('dactic/errors')
 var RestrictiveFacet = require('dactic/facet/restrictive')
@@ -8,12 +8,12 @@ module.exports = function (model, opts) {
   return new RestrictiveFacet({
     model: model,
     get: function (id, opts) {
-      var decodedId = decodeURIComponent(id);
+      var decodedId = decodeURIComponent(id)
       return when(this.model.get(decodedId, opts), function (response) {
         console.log('Facet returning response: ', response)
         console.log('opts.req.user.id:', opts.req.user.id)
         var user = response.getData()
-        if (opts.req.user && opts.req.user.id && (opts.req.user.id == user.id)) {
+        if (opts.req.user && opts.req.user.id && (opts.req.user.id === user.id)) {
           delete user.resetCode
           delete user.password
           return new Result(user)
@@ -38,7 +38,7 @@ module.exports = function (model, opts) {
       return when(this.model.get(id, opts), function (response) {
         console.log('opts.req.user.id:', opts.req.user.id)
         var user = response.getData()
-        if (opts.req.user && opts.req.user.id && (opts.req.user.id == user.id)) {
+        if (opts.req.user && opts.req.user.id && (opts.req.user.id === user.id)) {
           return when(_self.model.patch(user.id, patch, opts), function () {
             return true
           }, function (err) {
@@ -76,7 +76,7 @@ module.exports = function (model, opts) {
         throw new errors.Unathorized()
       }
 
-      if (!id || (id != opts.req.user.id)) {
+      if (!id || (id !== opts.req.user.id)) {
         throw new errors.Unauthorized()
       }
 
