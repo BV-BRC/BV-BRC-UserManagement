@@ -37,7 +37,6 @@ router.post('/', [
 router.post('/sulogin', [
   bodyParser.urlencoded({extended: true}),
   function (req, res, next) {
-    console.log('Authenticate User Token: ', req.body)
 
     if (!req.body.username || !req.body.password || !req.body.targetUser) {
       return next(new errors.Unauthorized('Missing Username, Password, or Target User'))
@@ -53,7 +52,11 @@ router.post('/sulogin', [
 
       bcrypt.compare(req.body.password, user.password, function (err, response) {
         console.log('Authenticated')
-        if (err) { console.log('Invalid Password'); next(errors.Unauthorized(err)) }
+        if (err || !response) { 
+		console.log('Invalid Password'); 
+		return next(errors.Unauthorized("Invalid Password")) 
+	}
+
         when(UserModel.get(req.body.targetUser), function (tres) {
           if (!tres) {
             return next(errors.NotAcceptable('Invalid Target User'))
