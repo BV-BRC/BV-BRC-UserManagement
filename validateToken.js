@@ -1,4 +1,4 @@
-var userIdRegex = /un=([\w.-]+@\w+(\.\w+))/
+var userIdRegex = /un=([\w.-@]+@\w+(\.\w+))/
 var crypto = require('crypto')
 var request = require('request')
 var Defer = require('promised-io/promise').defer
