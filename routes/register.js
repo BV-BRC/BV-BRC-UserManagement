@@ -16,7 +16,7 @@ router.post('/', [
       return next(new errors.BadRequest('Missing required fields'))
     }
     // check for user id rule
-    if (req.body.username.match(/[\w.-]/+)[0] !== req.body.username) {
+    if (req.body.username.match(/[\w.-]+/)[0] !== req.body.username) {
       return next(new errors.BadRequest('Username contains unacceptable characters. Use letters, numbers, underscore(_), dot(.), and dash(-)'))
     }
 
