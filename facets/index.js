@@ -1,5 +1,5 @@
 var fs = require('fs-extra')
-var debug = require('debug')('dme')
+var debug = require('debug')
 // var Path = require('path')
 
 var facets = {}
