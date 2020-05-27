@@ -40,7 +40,7 @@ router.get('/:email/:code', [
 
 /* post new password to the reset endpoint to reset password and clear the resetCode */
 router.post('/:email/:code', [
-  bodyParser.urlencoded(),
+  bodyParser.urlencoded({ extended: false }),
   function (req, res, next) {
     if (!req.params || !req.params.email || !req.params.code || !req.body || !req.body.password) {
       return next(new errors.NotAcceptable('Missing Data form or URL based data'))
@@ -64,7 +64,7 @@ router.post('/:email/:code', [
 ])
 
 router.post('/', [
-  bodyParser.urlencoded(),
+  bodyParser.urlencoded({ extended: false }),
   function (req, res, next) {
     if (!req.body || !req.body.email) {
       return next(new errors.NotAcceptable('Missing Email'))

@@ -13,6 +13,7 @@ var site = require('./site')
 var authenticate = require('./routes/authenticate')
 var register = require('./routes/register')
 var reset = require('./routes/reset')
+var debug = require('debug')('app')
 
 require('dactic/media/')
 
@@ -24,11 +25,11 @@ if (config.get('signing_PEM')) {
     f = path.join(__dirname, f)
   }
   try {
-    console.log('Filename: ', f)
+    debug('Filename: ', f)
     var SigningPEM = fs.readFileSync(f)
-    if (SigningPEM) { console.log('Found Signing Provate Key File') }
+    if (SigningPEM) { debug('Found Signing Provate Key File') }
   } catch (err) {
-    console.log('Could not find Private PEM File: ', f, err)
+    debug('Could not find Private PEM File: ', f, err)
   }
 }
 
@@ -66,7 +67,7 @@ app.use('/authenticate', authenticate)
 app.get('/public_key', [
   function (req, res, next) {
     var pubKeyFile = config.get('signing_public_PEM')
-    if (!pubKeyFile) { console.log('pubKeyFile found'); next('route') }
+    if (!pubKeyFile) { debug('pubKeyFile found'); next('route') }
     fs.readFile(pubKeyFile, 'utf-8', function (err, data) {
       if (err) { return next(err) }
       res.write(JSON.stringify({'pubkey': data, 'valid': 1}))
