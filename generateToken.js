@@ -15,7 +15,7 @@ if (config.get('signing_PEM')) {
   try {
     // console.log('Filename: ', f)
     SigningPEM = fs.readFileSync(f)
-    if (SigningPEM) { debug('Found Signing Provate Key File') }
+    if (SigningPEM) { debug('Found Signing Private Key File') }
   } catch (err) {
     debug('Could not find Private PEM File: ', f, err)
   }
@@ -35,12 +35,14 @@ module.exports = function generateBearerToken (user, scope) {
   var exp = moment()
   exp.add(duration, 'hours')
   var expiration = Math.floor(exp.valueOf() / 1000)
-  var realm = config.get('realm')
-
+  var realm_map = config.get('realm_map')
+  // console.log("Auth user source; ", user.source)
+  var realm = realm_map[user.source]
+  // console.log("realm: ", realm)
   var payload = [
     'un=' + name + '@' + realm, 'tokenid=' + tokenid,
     'expiry=' + expiration, 'client_id=' + name + '@' + realm,
-    'token_type=' + 'Bearer', 'realm=' + realm, 'scope=' + scope
+    'token_type=' + 'Bearer', 'scope=' + scope
   ]
 
   if (user.roles && user.roles.length > 0) {
@@ -53,6 +55,6 @@ module.exports = function generateBearerToken (user, scope) {
   sign.update(payload.join('|'))
   var signature = sign.sign(key, 'hex')
   var token = payload.join('|') + '|sig=' + signature
-  console.log('New Bearer Token: ', token)
+  // console.log('New Bearer Token: ', token)
   return token
 }

@@ -22,10 +22,10 @@ router.post('/', [
 
     console.log('Registering New User: ', req.body.username, req.body.email)
 
-    when(UserModel.registerUser(req.body), function () {
+    UserModel.registerUser(req.body).then(()=>{
       res.status(201)
       res.end()
-    }, function (err) {
+    },(err)=>{
       next(err)
     })
   }

@@ -21,9 +21,12 @@ router.post('/', [
       var user = ruser.getData()
       if (user) {
         var token = generateToken(user, 'user')
-        res.status(200)
-        res.send(token)
-        res.end()
+        var patch = {op: user.lastLogin?"replace":"add",path: "/lastLogin", value: new Date().toISOString()}
+        UserModel.patch(user.id, [patch]).then(()=>{
+          res.status(200)
+          res.send(token)
+          res.end()
+        })
       } else {
         next(errors.Unauthorized('Invalid username, email, or password'))
       }
@@ -42,20 +45,17 @@ router.post('/sulogin', [
       return next(new errors.Unauthorized('Missing Username, Password, or Target User'))
     }
 
-    console.log('Get User: ', req.body.username)
     when(UserModel.get(req.body.username), function (ruser) {
       var user = ruser.getData()
-      console.log('Got Login User: ', user)
+
       if (!user || !user.roles || (user.roles.length < 1) || (user.roles.indexOf('admin') < 0)) {
         return next(errors.Unauthorized())
       }
 
       bcrypt.compare(req.body.password, user.password, function (err, response) {
-        console.log('Authenticated')
         if (err || !response) { 
-		console.log('Invalid Password'); 
-		return next(errors.Unauthorized("Invalid Password")) 
-	}
+					return next(errors.Unauthorized("Invalid Password")) 
+				}
 
         when(UserModel.get(req.body.targetUser), function (tres) {
           if (!tres) {
@@ -63,7 +63,6 @@ router.post('/sulogin', [
           }
           var tuser = tres.getData()
 
-          console.log('Target User: ', tuser)
           var token = generateToken(tuser, 'user')
           res.status(200)
           res.send(token)
@@ -83,7 +82,7 @@ router.get('/refresh',
       return next(new errors.Unauthorized('Invalid Token'))
     }
 
-    console.log('Refresh Token: ', req.user)
+    debug('Refresh Token: ', req.user.id)
     when(UserModel.get(req.user.id), function (ruser) {
       var user = ruser.getData()
       // var u = {
@@ -102,7 +101,7 @@ router.get('/refresh',
 router.post('/service', [
   bodyParser.urlencoded({extended: true}),
   function (req, res, next) {
-    console.log('Authenticate Service Token: ', req.user)
+    debug('Authenticate Service Token: ', req.user)
     if (!req.user || !req.user.id) {
       return next(new errors.Unauthorized('Invalid Application Token'))
     }
@@ -115,9 +114,8 @@ router.post('/service', [
       return next(new errors.Unauthorized('Missing User Token'))
     }
 
-    // TODO validate body.token
     when(validateToken(req.body.token), function (tuser) {
-      console.log('Body Token Data: ', tuser)
+      // console.log('Body Token Data: ', tuser)
       when(UserModel.get(tuser.id), function (ruser) {
         var user = ruser.getData()
         if (user) {

@@ -3,6 +3,7 @@ var Defer = require('promised-io/promise').defer
 var config = require('../config')
 var email = require('nodemailer')
 var bcrypt = require('bcrypt')
+var crypto = require("crypto");
 var randomstring = require('randomstring')
 var smtpTransport = require('nodemailer-smtp-transport')
 var ModelBase = require('./base')
@@ -11,15 +12,19 @@ var util = require('util')
 var Result = require('dactic/result')
 
 function resetMessage (resetCode, email) {
-  console.log('Generate Reset Message')
+  // console.log('Generate Reset Message')
   var siteUrl = config.get('siteURL')
-  console.log('Reset Code: ', resetCode)
+  // console.log('Reset Code: ', resetCode)
   var msg = 'Click the following link or paste into your browser to Reset Your Password \n\n\t' + siteUrl + '/reset/' + email + '/' + resetCode
-  console.log('Reset Message: ', msg)
+  console.log('Reset URL: '+ siteUrl + '/reset/' + email + '/' + resetCode)
   return msg
 }
 
 var Model = module.exports = function (store, opts) {
+	this.salt=config.get("sha_salt")
+	if (!this.salt){
+		throw Error("Missing sha_salt in config file");
+	}
   ModelBase.apply(this, arguments)
 }
 
@@ -34,6 +39,10 @@ Model.prototype.schema = {
     id: {
       type: 'string',
       description: 'Id of User'
+    },
+    l_id: {
+      "type": "string",
+      "description": "lower case id"
     },
     first_name: {
       type: 'string',
@@ -66,15 +75,6 @@ Model.prototype.schema = {
       type: 'string',
       description: ''
     },
-    mailingList: {
-      type: 'boolean',
-      description: ''
-    },
-    registrationDate: {
-      type: 'string',
-      description: ''
-    },
-
     lastLogin: {
       type: 'string',
       description: ''
@@ -87,16 +87,16 @@ Model.prototype.schema = {
       type: 'string',
       description: ''
     },
-
     roles: {
       type: 'array',
       description: '',
       items: {
         type: 'string'
-      }
+      },
+      "default": []
     }
   },
-  required: ['id', 'email', 'first_name', 'last_name']
+  required: ['id','email', 'first_name', 'last_name',"l_id","roles"]
 }
 
 Model.prototype.registerUser = function (user) {
@@ -107,7 +107,7 @@ Model.prototype.registerUser = function (user) {
   var username = user.username
   delete user.username
 
-  var q = ['or(eq(id,', encodeURIComponent(username), '),eq(email,', encodeURIComponent(user.email), '))&limit(1)'].join('')
+  var q = ['or(eq(id,', encodeURIComponent(username), '),eq(email,', encodeURIComponent(user.email.toLowerCase()), '))&limit(1)'].join('')
 
   return When(this.query(q), function (res) {
     var results = res.getData()
@@ -121,14 +121,20 @@ Model.prototype.registerUser = function (user) {
       var err = new errors.Conflict(msg)
       throw err
     } else {
+      // console.log("post newUser: ", newUser)
       return When(_self.post(newUser, {id: username}), function (u) {
-        console.log('User Registered: ', newUser, ' Resetting Account: ', newUser.id)
+        // console.log('User Registered, Resetting Account: ', newUser.id)
         return When(_self.resetAccount(newUser.id, {mail_user: false}), function (resetResults) {
           var resetUser = resetResults.getData()
-          // console.log("resetUser: ", resetUser);
+          // console.log("Mail User")
           return When(_self.mail(newUser.id, 'Click the following link or paste into your browser to Complete Registration\n\n\t ' + siteUrl + '/reset/' + encodeURIComponent(newUser.email) + '/' + resetUser.resetCode, 'PATRIC Registration', {}), function () {
-            console.log('Registration Complete: ', resetUser)
-            return resetUser
+            console.log('Registration Complete URL : '+ siteUrl + '/reset/' + encodeURIComponent(newUser.email) + '/' + resetUser.resetCode)
+             return resetUser
+          }, function(err){
+            // console.log("Error Sending mail during registration: ", err, "Delete new account")
+            // return _self.delete(username).then(()=>{
+            //   throw new Error("There was an error sending you notification of account creation.  Please try creating your account again.")
+            // }) 
           })
         })
       })
@@ -138,7 +144,10 @@ Model.prototype.registerUser = function (user) {
 
 Model.prototype.get = function (id, opts) {
   // console.log("GET(",id,")");
-  return When(this.query('or(eq(id,' + encodeURIComponent(id) + '),eq(email,' + encodeURIComponent(id) + '))&limit(1)'), function (res) {
+  if (!id){
+    throw new Error("Missing ID")
+  }
+  return When(this.query('or(eq(id,' + encodeURIComponent(id) + '),eq(email,' + encodeURIComponent(id.toLowerCase()) + '))&limit(1)'), function (res) {
     // console.log("get user res: ", res)
     var user = res.getData()[0]
     if (user) {
@@ -204,12 +213,12 @@ Model.prototype.mail = function (userId, message, subject, options) {
       text: message
     }
 
-    console.log('Sending Email: ', mailmsg)
+    // console.log('Sending Email: ', mailmsg)
 
     var deferred = new Defer()
 
     transport.sendMail(mailmsg, function (err, result) {
-      console.log('sendMail result: ', err, result)
+      // console.log('sendMail result: ', err, result)
       if (deferred.fired) { return }
       if (err) {
         deferred.reject(err)
@@ -224,9 +233,10 @@ Model.prototype.mail = function (userId, message, subject, options) {
 }
 
 Model.prototype.resetAccount = function (id, opts) {
+  // console.log("Reset Account")
   var _self = this
   opts = opts || {}
-  console.log('Reset Account: ', id)
+  // console.log('Reset Account: ', id)
   var patch = [{ 'op': 'add', 'path': '/resetCode', 'value': randomstring.generate(5).toUpperCase() }]
   return When(_self.patch(id, patch), function () {
     // console.log("Reset Account Patch Completed");
@@ -239,31 +249,78 @@ Model.prototype.resetAccount = function (id, opts) {
       // console.log("POST PATCH USER: ", user);
 
       var msg = resetMessage(user.resetCode, user.email)
-
+      // console.log("msg: ", msg)
       if (opts.mail_user) {
-        console.log('Mail User Reset Link')
+        // console.log('Mail User Reset Link')
         return (_self.mail(user.id, msg, 'Password Reset'), function () {
           _self.emit('message', {action: 'update', item: user})
           return new Result(user)
         })
       } else {
+        // console.log("mail user false")
         return new Result(user)
       }
     }, function (err) {
+      console.log("err: ",err)
       return err
     })
   })
 }
 
+Model.prototype._validateBcrypt=function(password,encrypted,id,opts){
+	var def = new Defer()
+	bcrypt.compare(password, encrypted, function (err, response) {
+		if (err) { return def.resolve(false) }
+		if (response) { return def.resolve(true); }
+  	def.resolve(false)
+	})
+	return def.promise
+}
+
+Model.prototype._validateSHA=function(password,encrypted,algo,iterations,id,opts){
+	var def = new Defer()
+	var content = `${password}{${this.salt}}`	
+	// console.log("content: ", content);
+	var hash = crypto.createHash(algo).update(content).digest('hex')
+	for (i=1;i<iterations;i++){
+		hash = crypto.createHash(algo).update(hash).digest('hex')
+	}
+
+	if (hash===encrypted){
+		console.log("Re-encode sha1 password as bcrypt for user id: ", id);
+		When(this.setPassword(id,password), function(){
+			def.resolve(true);
+		});
+	}else{
+		def.resolve(false);
+	}
+	return def.promise;
+}
+
 Model.prototype.validatePassword = function (id, password, opts) {
+  // console.log("validate password: ", id)
+	var _self=this;
+	opts=opts||{}
   return When(this.get(id), function (ruser) {
     var user = ruser.getData()
+    // console.log("user: ", user)
     var def = new Defer()
-    bcrypt.compare(password, user.password, function (err, response) {
-      if (err) { return def.resolve(new Result(false)) }
-      if (response) { return def.resolve(new Result(user)) }
-      def.resolve(new Result(false))
-    })
+		var vdef;
+
+		if (user.password.match(/\$2[ab]/)){
+			vdef = _self._validateBcrypt(password,user.password,id,opts)
+		}else{
+			vdef = _self._validateSHA(password,user.password,"sha1",1,id,opts)
+		}
+
+		When(vdef, function(success){
+			if (success) {
+				return def.resolve(new Result(user))
+			}
+			def.resolve(new Result(false))
+		}, function(err){
+			def.resolve(new Result(false));
+		});
     return def.promise
   })
 }
@@ -275,7 +332,7 @@ Model.prototype.setPassword = function (id, password, opts) {
   if (!id) { throw Error('User ID Required') }
 
   var def = new Defer()
-  console.log('Set Password for ', id)
+  // console.log('Set Password for ', id)
   bcrypt.hash(password, 10, function (err, pw) {
     var patch = [
       { 'op': 'add', 'path': '/password', 'value': pw },
@@ -300,18 +357,24 @@ Model.prototype.post = function (obj, opts) {
   var _self = this
   opts = opts || {}
   obj.id = opts.id
+  obj.l_id = obj.id.toLowerCase()
+  obj.email = obj.email.toLowerCase()
   opts.overwrite = false
-
   var now = new Date().toISOString()
   obj.creationDate = now
   obj.updateDate = now
   obj.createdBy = (opts && opts.req && opts.req.user) ? opts.req.user.id : 'system'
   obj.updatedBy = obj.createdBy
+  obj.source = config.get("default_source")
   var out = _self.mixinObject({}, obj)
+  // console.log("New User: ", out)
   return When(_self.put(out, opts), function (res) {
     return new Result(out)
   }, function (err) {
-    console.log('Error Creating User: ', err)
+    if (err.code===11000){
+      throw new errors.Conflict("An account with this username or email address already exists.")
+    }
+    return err
   })
 }
 
@@ -319,7 +382,7 @@ Model.prototype.put = function (obj, opts) {
   if (typeof obj.creationDate !== 'string') {
     obj.creationDate = obj.creationDate.toISOString()
   }
-
+ 
   obj.updateDate = new Date().toISOString()
   return ModelBase.prototype.put.apply(this, [obj, opts])
 }

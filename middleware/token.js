@@ -4,7 +4,11 @@ var when = require('promised-io/promise').when
 // var UserModel = DataModel.get('user')
 var config = require('../config')
 
-var realm = config.get('realm')
+
+var realm_map = config.get('realm_map');
+const realms = Object.keys(realm_map).map((key)=>{
+  return realm_map[key]
+})
 
 module.exports = function (req, res, next) {
   if (req.headers && req.headers['authorization']) {
@@ -13,7 +17,11 @@ module.exports = function (req, res, next) {
       if (valid) {
         req.user = valid
         if (req.user.id) {
-          req.user.id = req.user.id.replace('@' + realm, '')
+          var parts = req.user.id.split("@")
+          if (realms.indexOf(parts[1])<0){
+            next(new Error("Token Failed Validation: Invalid Realm"))
+          }
+          req.user.id = req.user.id.replace('@' + parts[1], '')
         }
         // console.log("Valid Login: ", valid);
         if (req.user && req.user.roles && (req.user.roles.indexOf('admin') >= 0)) {
@@ -21,7 +29,7 @@ module.exports = function (req, res, next) {
         } else {
           req.apiPrivilegeFacet = 'user'
         }
-        console.log('req.user: ', req.user)
+        // console.log('req.user: ', req.user)
         next()
       } else {
         // console.log("Token Failed Validation");

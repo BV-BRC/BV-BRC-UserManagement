@@ -10,7 +10,13 @@ var defaults = {
   'p3Home': 'http://patricbrc.org',
   'signing_PEM': 'private.pem',
   'signing_public_PEM': 'public.pem',
-  'realm': 'patricbrc.org',
+  'default_source': 'bvbrc',
+
+  'realm_map': {
+    'patricbrc.org': "patricbrc.org",
+    "viprbrc": "bvbrc",
+    "bvbrc": "bvbrc"
+  },
   'email': {
     'localSendmail': false,
     'defaultFrom': 'PATRIC <do-not-reply@patricbrc.org>',

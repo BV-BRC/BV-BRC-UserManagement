@@ -10,8 +10,8 @@ module.exports = function (model, opts) {
     get: function (id, opts) {
       var decodedId = decodeURIComponent(id)
       return when(this.model.get(decodedId, opts), function (response) {
-        console.log('Facet returning response: ', response)
-        console.log('opts.req.user.id:', opts.req.user.id)
+        // console.log('Facet returning response: ', response)
+        // console.log('opts.req.user.id:', opts.req.user.id)
         var user = response.getData()
         if (opts.req.user && opts.req.user.id && (opts.req.user.id === user.id)) {
           delete user.resetCode
@@ -33,15 +33,17 @@ module.exports = function (model, opts) {
     },
 
     patch: function (id, patch, opts) {
-      console.log('facet patch', id, patch)
+      // console.log('facet patch', id, patch)
       var _self = this
       return when(this.model.get(id, opts), function (response) {
-        console.log('opts.req.user.id:', opts.req.user.id)
+        // console.log('opts.req.user.id:', opts.req.user.id)
         var user = response.getData()
         if (opts.req.user && opts.req.user.id && (opts.req.user.id === user.id)) {
           return when(_self.model.patch(user.id, patch, opts), function () {
-            return true
+            // console.log("facet patch after model patch")
+            return new Result(true)
           }, function (err) {
+            // console.log("Error in patch: ", err)
             return new errors.NotAcceptable(err)
           })
         } else {
@@ -98,7 +100,7 @@ module.exports = function (model, opts) {
             return err
           })
         } else {
-          throw new errors.Unauthorized('Invalid Curent Password')
+          throw new errors.Unauthorized('Invalid Current Password')
         }
       })
     }
