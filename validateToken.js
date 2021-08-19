@@ -4,11 +4,16 @@ var crypto = require('crypto')
 var request = require('request')
 var Defer = require('promised-io/promise').defer
 var when = require('promised-io/promise').when
+var config = require("./config");
 
 var ssCache = {}
-
+var signingSubjectURL = config.get('signingSubjectURL')
 var getSigner = function (signer) {
   var def = new Defer()
+  if (signer!==signingSubjectURL){
+    def.reject("Invalid Signing Subject: " + signingSubjectURL)
+    return def.promise
+  }
   if (ssCache[signer]) {
     def.resolve(ssCache[signer])
     return def.promise
