@@ -1,4 +1,5 @@
-var userIdRegex = /un=([\w\-.@]+@\w+[(\.\w+)])/
+// var userIdRegex = /un=([\w\-.@]+@\w+(\.\w+))/
+var userIdRegex = /un=([\w\-.@]+@\w+[\.\w]+)/
 var crypto = require('crypto')
 var request = require('request')
 var Defer = require('promised-io/promise').defer
@@ -59,7 +60,6 @@ module.exports = function (token) {
 
     var user = {}
     var matches = token.match(userIdRegex)
-
     if (matches && matches[1]) {
       user.id = matches[1]
     }
