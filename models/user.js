@@ -131,10 +131,10 @@ Model.prototype.registerUser = function (user) {
             console.log('Registration Complete URL : '+ siteUrl + '/reset/' + encodeURIComponent(newUser.email) + '/' + resetUser.resetCode)
              return resetUser
           }, function(err){
-            // console.log("Error Sending mail during registration: ", err, "Delete new account")
-            // return _self.delete(username).then(()=>{
-            //   throw new Error("There was an error sending you notification of account creation.  Please try creating your account again.")
-            // }) 
+            console.log("Error Sending mail during registration: ", err, "Delete new account")
+            return _self.delete(username).then(()=>{
+              throw new Error("There was an error sending you notification of account creation.  Please try creating your account again.")
+            }) 
           })
         })
       })
