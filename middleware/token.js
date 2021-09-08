@@ -3,7 +3,7 @@ var validateToken = require('../validateToken')
 var when = require('promised-io/promise').when
 // var UserModel = DataModel.get('user')
 var config = require('../config')
-
+var signingSubjectURL = config.get("signingSubjectURL");
 
 var realm_map = config.get('realm_map');
 const realms = Object.keys(realm_map).map((key)=>{
@@ -12,7 +12,7 @@ const realms = Object.keys(realm_map).map((key)=>{
 
 module.exports = function (req, res, next) {
   if (req.headers && req.headers['authorization']) {
-    when(validateToken(req.headers['authorization']), function (valid) {
+    when(validateToken(req.headers['authorization'],signingSubjectURL), function (valid) {
       // valid: either false or {id: 'username@patricbrc.org'}
       if (valid) {
         req.user = valid

@@ -8,7 +8,6 @@ var UserModel = DataModel.get('user')
 // var generateToken = require('../generateToken')
 // var validateToken = require('../validateToken')
 // var bcrypt = require('bcrypt')
-var config = require('../config')
 
 router.use(function (req, res, next) {
   console.log('Reset Route Start')

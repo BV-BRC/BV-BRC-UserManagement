@@ -8,6 +8,8 @@ var UserModel = DataModel.get('user')
 var generateToken = require('../generateToken')
 var validateToken = require('../validateToken')
 var bcrypt = require('bcrypt')
+var config = require("../config")
+var signingSubjectURL = config.get("signingSubjectURL");
 
 /* Basic Password auth */
 router.post('/', [
@@ -114,7 +116,7 @@ router.post('/service', [
       return next(new errors.Unauthorized('Missing User Token'))
     }
 
-    when(validateToken(req.body.token), function (tuser) {
+    when(validateToken(req.body.token,signingSubjectURL), function (tuser) {
       // console.log('Body Token Data: ', tuser)
       when(UserModel.get(tuser.id), function (ruser) {
         var user = ruser.getData()

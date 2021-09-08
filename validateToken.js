@@ -4,16 +4,11 @@ var crypto = require('crypto')
 var request = require('request')
 var Defer = require('promised-io/promise').defer
 var when = require('promised-io/promise').when
-var config = require("./config");
 
 var ssCache = {}
-var signingSubjectURL = config.get('signingSubjectURL')
+
 var getSigner = function (signer) {
   var def = new Defer()
-  if (signer!==signingSubjectURL){
-    def.reject("Invalid Signing Subject: " + signingSubjectURL)
-    return def.promise
-  }
   if (ssCache[signer]) {
     def.resolve(ssCache[signer])
     return def.promise
@@ -29,7 +24,7 @@ var getSigner = function (signer) {
   return def.promise
 }
 
-var validateToken = function (token) {
+var validateToken = function (token,signingSubject) {
   var parts = token.split('|')
   var parsedToken = {}
   var baseToken = []
@@ -40,6 +35,10 @@ var validateToken = function (token) {
     }
     parsedToken[tuple[0]] = tuple[1]
   })
+
+  if (parsedToken.SigningSubject!==signingSubject){
+    new Error("Invalid Signing Subject: " + signingSubjectURL)
+  }
 
   return when(getSigner(parsedToken.SigningSubject), function (signer) {
     // console.log("Got Signer Cert: ", signer);
@@ -57,11 +56,7 @@ var validateToken = function (token) {
 }
 
 module.exports = function (token,signingSubject) {
-  if (signingSubject){
-    signingSubjectURL = signingSubject
-  }
-  
-  return when(validateToken(token), function (valid) {
+  return when(validateToken(token,signingSubject), function (valid) {
     if (!valid) {
       console.log('Invalid Token')
       return false
@@ -78,5 +73,7 @@ module.exports = function (token,signingSubject) {
       return user
     }
     return false
+  },function(err){
+    return false;
   })
 }
