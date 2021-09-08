@@ -56,7 +56,11 @@ var validateToken = function (token) {
   })
 }
 
-module.exports = function (token) {
+module.exports = function (token,signingSubject) {
+  if (signingSubject){
+    signingSubjectURL = signingSubject
+  }
+  
   return when(validateToken(token), function (valid) {
     if (!valid) {
       console.log('Invalid Token')
