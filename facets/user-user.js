@@ -1,8 +1,9 @@
-// var config = require('../config')
+var config = require('../config')
 var when = require('promised-io/promise').when
 var errors = require('dactic/errors')
 var RestrictiveFacet = require('dactic/facet/restrictive')
 var Result = require('dactic/result')
+var realm_map = config.get('realm_map');
 
 module.exports = function (model, opts) {
   return new RestrictiveFacet({
@@ -23,7 +24,8 @@ module.exports = function (model, opts) {
             first_name: user.first_name,
             last_name: user.last_name,
             affiliation: user.affiliation,
-            organisms: user.organisms
+            organisms: user.organisms,
+            realm: realm_map[user.source]
           }
           return new Result(u)
         }
@@ -54,21 +56,24 @@ module.exports = function (model, opts) {
 
     query: function (query, opts) {
       return when(this.model.query(query, opts), function (response) {
+        
         var users = response.getData()
         if (users && users.length > 0) {
+        
           users = users.map(function (user) {
-            return {
+            var u = {
               id: user.id,
               first_name: user.first_name,
               last_name: user.last_name,
               affiliation: user.affiliation,
-              organisms: user.organisms
+              organisms: user.organisms,
+              realm: realm_map[user.source]
             }
+            return u;
           })
         } else {
           users = []
         }
-
         return new Result(users, response.getMetadata())
       })
     },
