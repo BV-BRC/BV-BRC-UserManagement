@@ -3,17 +3,18 @@ var when = require('promised-io/promise').when
 var errors = require('dactic/errors')
 var RestrictiveFacet = require('dactic/facet/restrictive')
 var Result = require('dactic/result')
+var config = require('../config')
+var realm_map = config.get('realm_map');
 
 module.exports = function (model, opts) {
   return new RestrictiveFacet({
     model: model,
     get: function (id, opts) {
       return when(this.model.get(id, opts), function (response) {
-        console.log('Facet returning response: ', response)
-        console.log('opts.req.user.id:', opts.req.user.id)
         var user = response.getData()
         delete user.resetCode
         delete user.password
+        user.realm=realm_map[user.source]
         return new Result(user)
       }, function (err) {
         return new errors.NotFound(err)
@@ -21,10 +22,8 @@ module.exports = function (model, opts) {
     },
 
     patch: function (id, patch, opts) {
-      console.log('facet patch', id, patch)
       var _self = this
       return when(this.model.get(id, opts), function (response) {
-        console.log('opts.req.user.id:', opts.req.user.id)
         var user = response.getData()
         if (opts.req.user && opts.req.user.id && (opts.req.user.id === user.id)) {
           return when(_self.model.patch(user.id, patch, opts), function () {
@@ -45,6 +44,7 @@ module.exports = function (model, opts) {
           users = users.map(function (user) {
             delete user.resetCode
             delete user.password
+            user.realm=realm_map[user.source]
             return user
           })
         } else {

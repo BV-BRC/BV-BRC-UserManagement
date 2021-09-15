@@ -15,7 +15,7 @@ var defaults = {
   'realm_map': {
     'patricbrc.org': "patricbrc.org",
     "viprbrc": "bvbrc",
-    "bvbrc": "bvbrc"
+    "bvbrc": "bvbrc" 
   },
   'email': {
     'localSendmail': false,
