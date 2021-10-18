@@ -5,6 +5,7 @@ var DataModel = require('../dataModel')
 var when = require('promised-io/promise').when
 var errors = require('dactic/errors')
 var UserModel = DataModel.get('user')
+var config = require("../config")
 // var generateToken = require('../generateToken')
 // var validateToken = require('../validateToken')
 // var bcrypt = require('bcrypt')
