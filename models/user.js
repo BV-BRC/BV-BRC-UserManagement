@@ -127,7 +127,7 @@ Model.prototype.registerUser = function (user) {
         return When(_self.resetAccount(newUser.id, {mail_user: false}), function (resetResults) {
           var resetUser = resetResults.getData()
           // console.log("Mail User")
-          return When(_self.mail(newUser.id, 'Click the following link or paste into your browser to Complete Registration\n\n\t ' + siteUrl + '/reset/' + encodeURIComponent(newUser.email) + '/' + resetUser.resetCode, 'PATRIC Registration', {}), function () {
+          return When(_self.mail(newUser.id, 'Click the following link or paste into your browser to Complete Registration\n\n\t ' + siteUrl + '/reset/' + encodeURIComponent(newUser.email) + '/' + resetUser.resetCode, 'BVBRC Registration', {}), function () {
             console.log('Registration Complete URL : '+ siteUrl + '/reset/' + encodeURIComponent(newUser.email) + '/' + resetUser.resetCode)
              return resetUser
           }, function(err){
