@@ -15,8 +15,17 @@ function resetMessage (resetCode, email) {
   // console.log('Generate Reset Message')
   var siteUrl = config.get('siteURL')
   // console.log('Reset Code: ', resetCode)
-  var msg = 'Click the following link or paste into your browser to Reset Your Password \n\n\t' + siteUrl + '/reset/' + email + '/' + resetCode
-  console.log('Reset URL: '+ siteUrl + '/reset/' + email + '/' + resetCode)
+  var msg = 'Click the following link or paste into your browser to Reset Your Password \n\n\t' + siteUrl + '/reset/' + encodeURIComponent(email) + '/' + resetCode
+  console.log('Reset URL: '+ siteUrl + '/reset/' + encodeURIComponent(email) + '/' + resetCode)
+  return msg
+}
+
+function validateMessage (verificationCode, email) {
+  // console.log('Generate Reset Message')
+  var siteUrl = config.get('siteURL')
+  // console.log('Reset Code: ', resetCode)
+  var msg = 'Click the following link or paste into your browser to verify your email address. \n\n\t' + siteUrl + '/verify/' + encodeURIComponent(email) + '/' + verificationCode
+  console.log('Verification URL: '+ siteUrl + '/verify/' + encodeURIComponent(email) + '/' + verificationCode)
   return msg
 }
 
@@ -52,6 +61,7 @@ Model.prototype.schema = {
       type: 'string',
       description: ''
     },
+
 
     affiliation: {
       type: 'string',
@@ -106,6 +116,8 @@ Model.prototype.registerUser = function (user) {
   var newUser = user // {name: user.name, email: user.email}
   var username = user.username
   delete user.username
+  var pw = user.password
+  delete user.password
 
   var q = ['or(eq(id,', encodeURIComponent(username), '),eq(email,', encodeURIComponent(user.email.toLowerCase()), '))&limit(1)'].join('')
 
@@ -124,19 +136,32 @@ Model.prototype.registerUser = function (user) {
       // console.log("post newUser: ", newUser)
       return When(_self.post(newUser, {id: username}), function (u) {
         // console.log('User Registered, Resetting Account: ', newUser.id)
-        return When(_self.resetAccount(newUser.id, {mail_user: false}), function (resetResults) {
-          var resetUser = resetResults.getData()
-          // console.log("Mail User")
-          return When(_self.mail(newUser.id, 'Click the following link or paste into your browser to Complete Registration\n\n\t ' + siteUrl + '/reset/' + encodeURIComponent(newUser.email) + '/' + resetUser.resetCode, 'BVBRC Registration', {}), function () {
-            console.log('Registration Complete URL : '+ siteUrl + '/reset/' + encodeURIComponent(newUser.email) + '/' + resetUser.resetCode)
-             return resetUser
+        if (!pw){
+          return When(_self.resetAccount(newUser.id, {mail_user: false}), function (resetResults) {
+            var resetUser = resetResults.getData()
+            // console.log("Mail User")
+            return When(_self.mail(newUser.id, 'Click the following link or paste into your browser to Complete Registration\n\n\t ' + siteUrl + '/reset/' + encodeURIComponent(newUser.email) + '/' + resetUser.resetCode, 'BVBRC Registration', {}), function () {
+              console.log('Registration Complete URL : '+ siteUrl + '/reset/' + encodeURIComponent(newUser.email) + '/' + resetUser.resetCode)
+              return resetUser
+            }, function(err){
+              console.log("Error Sending mail during registration: ", err, "Delete new account")
+              return _self.delete(username).then(()=>{
+                throw new Error("There was an error sending you notification of account creation.  Please try creating your account again.")
+              }) 
+            })
+          })
+        }else{
+          return When(_self.setPassword(newUser.id,pw),function(setPWResults){
+              return When(_self.sendVerificationEmail(newUser.id),function(resetResults){
+                var resetUser = resetResults.getData();
+                return new Result(resetUser)
+              })
           }, function(err){
-            console.log("Error Sending mail during registration: ", err, "Delete new account")
             return _self.delete(username).then(()=>{
-              throw new Error("There was an error sending you notification of account creation.  Please try creating your account again.")
+              throw new Error("Password Set Error: " + err)
             }) 
           })
-        })
+        }
       })
     }
   })
@@ -171,7 +196,7 @@ Model.prototype.mail = function (userId, message, subject, options) {
   return When(u, function (gres) {
     var user = gres.getData()
     // console.log("user: ", user);
-    console.log('Sending mail to : ', user.email)
+    // console.log('Sending mail to : ', user.email)
     var mailconf = config.get('email')
 
     if (mailconf.localSendmail) {
@@ -238,6 +263,7 @@ Model.prototype.resetAccount = function (id, opts) {
   opts = opts || {}
   // console.log('Reset Account: ', id)
   var patch = [{ 'op': 'add', 'path': '/resetCode', 'value': randomstring.generate(5).toUpperCase() }]
+  // console.log("Patches: ", patch)
   return When(_self.patch(id, patch), function () {
     // console.log("Reset Account Patch Completed");
     return When(_self.get(id), function (ruser) {
@@ -246,23 +272,88 @@ Model.prototype.resetAccount = function (id, opts) {
       if (!user) {
         throw new errors.NotFound(id + ' Not Found')
       }
-      // console.log("POST PATCH USER: ", user);
-
+     // console.log("POST PATCH USER: ", user);
       var msg = resetMessage(user.resetCode, user.email)
-      // console.log("msg: ", msg)
       if (opts.mail_user) {
         // console.log('Mail User Reset Link')
-        return (_self.mail(user.id, msg, 'Password Reset'), function () {
+        return When(_self.mail(user.id, msg, 'Password Reset'), function () {
           _self.emit('message', {action: 'update', item: user})
           return new Result(user)
+        }, function(err){
+          console.log("Error sending email : ", err)
+          return new Result(user)          
         })
       } else {
         // console.log("mail user false")
         return new Result(user)
       }
     }, function (err) {
-      console.log("err: ",err)
+      console.log("resetUser patch err: ",err)
       return err
+    })
+  })
+}
+
+Model.prototype.verifyEmail = function (id, opts) {
+  var _self = this
+  opts = opts || {}
+
+  var patch = [
+    {'op': 'add', 'path': '/verification_code', "value": ""},
+    {"op": "add", "path": "/email_verified", "value": true},
+    {"op": "add", "path": "/verification_date", "value": new Date().toISOString()},
+    {"op": "add", "path": "/verification_error", "value": false},
+    {"op": "add", "path": "/reverification", "value": false},
+    { 'op': 'add', 'path': "/verification_send_date", 'value': ""}
+  ]
+  return When(_self.patch(id,patch), function(){
+    return true
+  });
+}
+
+Model.prototype.sendVerificationEmail = function (id, opts) {
+  // console.log("Reset Account")
+  var _self = this
+  opts = opts || {}
+  // console.log('Reset Account: ', id)
+  var patch = [
+    { 'op': 'add', 'path': '/verification_code', 'value': randomstring.generate(5).toUpperCase() },
+    { 'op': 'add', 'path': '/email_verified', 'value': false},
+    { 'op': 'add', 'path': "/verification_send_date", 'value': new Date().toISOString()},
+    { "op": "add", "path": "/verification_date", "value": ""},
+    { "op": "add", "path": "/verification_error", "value": ""},
+    { "op": "add", "path": "/reverification", "value": opts.reverification?true:false}
+  ]
+
+  // console.log("Patches: ", patch)
+
+  return When(_self.patch(id, patch), function () {
+    // console.log("Reset Account Patch Completed");
+    return When(_self.get(id), function (ruser) {
+      // console.log("REGET User: ", ruser);
+      var user = ruser.getData()
+      if (!user) {
+        throw new errors.NotFound(id + ' Not Found')
+      }
+
+     // console.log("POST PATCH USER: ", user);
+
+      var msg = validateMessage(user.verification_code,user.email)
+      // console.log("msg: ", msg)
+
+      // console.log('Mail User Reset Link')
+      return When(_self.mail(user.id, msg, "Email Verification"), function () {
+        _self.emit('message', {action: 'update', item: user})
+        return new Result(user)
+      }, function(err){
+        console.log("Error sending email : ", err)
+        return _self.patch(id, [{'op': 'add','path': "/verification_error",'value': err}]).then(function () {
+          user.verificaton_error=err
+          console.log("rethrow error")
+          throw err
+        })
+      })
+
     })
   })
 }
@@ -351,6 +442,24 @@ Model.prototype.setPassword = function (id, password, opts) {
     })
   })
   return def.promise
+}
+
+Model.prototype.patch = function(id,patch,opts){
+  var emailChanged=false
+  var _self=this
+  emailChanged = patch.some(function(p){
+    return p.path === "/email"
+  })
+
+  return When(this.constructor.super_.prototype.patch.call(this,id,patch,opts), function(results){
+    if (!emailChanged){
+      return results
+    }
+    return When(_self.sendVerificationEmail(id),function(resetResults){
+      return results
+    })
+  })
+
 }
 
 Model.prototype.post = function (obj, opts) {

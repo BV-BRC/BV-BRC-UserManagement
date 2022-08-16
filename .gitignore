@@ -2,3 +2,5 @@
 node_modules/
 p3-user.conf
 .DS_Store
+*.pem
+p3_user.code-workspace

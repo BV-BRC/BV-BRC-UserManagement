@@ -13,6 +13,7 @@ var site = require('./site')
 var authenticate = require('./routes/authenticate')
 var register = require('./routes/register')
 var reset = require('./routes/reset')
+var verify = require('./routes/verify')
 var debug = require('debug')('app')
 
 require('dactic/media/')
@@ -63,6 +64,7 @@ app.use(token)
 // app.post("/validate", site.validateUserCredentials);
 app.use('/register', register)
 app.use('/reset', reset)
+app.use("/verify", verify)
 app.use('/authenticate', authenticate)
 app.get('/public_key', [
   function (req, res, next) {
