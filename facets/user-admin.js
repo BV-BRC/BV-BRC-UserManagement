@@ -29,7 +29,7 @@ module.exports = function (model, opts) {
           return when(_self.model.patch(user.id, patch, opts), function () {
             return true
           }, function (err) {
-            return new errors.BadRequest(err)
+            throw err
           })
         } else {
           throw new errors.Unauthorized()

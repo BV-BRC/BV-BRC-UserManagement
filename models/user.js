@@ -458,6 +458,12 @@ Model.prototype.patch = function(id,patch,opts){
     return When(_self.sendVerificationEmail(id),function(resetResults){
       return results
     })
+  }, function(err){
+    if (err.message.match(/^E11000*/)){
+      throw errors.Conflict("An account with that email address already exists.")
+    }else{
+      throw errors.BadRequest(err)
+    }
   })
 
 }

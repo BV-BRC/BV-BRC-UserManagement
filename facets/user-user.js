@@ -30,7 +30,7 @@ module.exports = function (model, opts) {
           return new Result(u)
         }
       }, function (err) {
-        return new errors.NotFound(err)
+        throw new errors.NotFound(err)
       })
     },
 
@@ -46,7 +46,7 @@ module.exports = function (model, opts) {
             return new Result(true)
           }, function (err) {
             // console.log("Error in patch: ", err)
-            return new errors.NotAcceptable(err)
+            throw err
           })
         } else {
           throw new errors.Unauthorized()
