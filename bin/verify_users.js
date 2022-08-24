@@ -3,8 +3,8 @@ const debug = require('debug')('p3-user');
 const conf = require('../config');
 const MongoClient = require("mongodb").MongoClient
 mongoconf = conf.get("mongo")
-// console.error("This was a one time import script, do not use without thinking through what it does")
-// process.exit(1)
+console.error("This was a one time import script, do not use without thinking through what it does")
+process.exit(1)
 if (mongoconf && mongoconf.url) {
 	console.log("Creating MongoClient client @ " + mongoconf.url);
 	var client = MongoClient.connect(mongoconf.url, {})
