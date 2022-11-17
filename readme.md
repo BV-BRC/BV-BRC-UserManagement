@@ -56,7 +56,7 @@ or
 npm run build-image
 ```
 
-These both generate a file with the name p3_user-<VERSION>.sif.
+These both generate a file with the name ```p3_user-<VERSION>.sif```.
 
 ### Using the singularity container.
 
