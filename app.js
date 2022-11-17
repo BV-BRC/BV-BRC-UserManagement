@@ -15,10 +15,13 @@ var register = require('./routes/register')
 var reset = require('./routes/reset')
 var verify = require('./routes/verify')
 var debug = require('debug')('app')
+var sleep = require("sleep-promise");
 
 require('dactic/media/')
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+
+// Why is this still here?
+//process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 if (config.get('signing_PEM')) {
   var f = config.get('signing_PEM')
@@ -30,14 +33,49 @@ if (config.get('signing_PEM')) {
     var SigningPEM = fs.readFileSync(f)
     if (SigningPEM) { debug('Found Signing Provate Key File') }
   } catch (err) {
-    debug('Could not find Private PEM File: ', f, err)
+    console.log('Could not find Private PEM File: ', f, err)
+    process.exit(1)
   }
 }
+
+var app = module.exports = express()
+
+process.send = process.send || function(){}
+const listener  = app.listen(config.get('http_port') || 3002, function(){
+	console.log(`Listening on port ${listener.address().port}`)
+	process.send("ready")
+})
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'))
 app.set('view engine', 'ejs')
 app.use(logger('dev'))
+
+var draining = false;
+var stats = {
+	active_requests: 0
+}
+
+app.use((req,res,next)=>{
+
+  if (draining){
+		res.status(503)
+		res.send("Draining")
+		res.end()
+		return;
+	}
+
+	function fn(){
+		console.log("Request Complete");
+		stats.active_requests--
+		res.removeListener("finish",fn)
+	}
+	stats.active_requests = stats.active_requests + 1
+	console.log("New Request", stats.active_requests);
+	res.on("finish", fn)
+	next()
+});
+
 app.use(cors({origin: true, methods: ['GET', 'PUT', 'patch', 'PATCH', 'POST', 'PUT', 'DELETE'], allowHeaders: ['accept', 'content-type', 'authorization'], exposedHeaders: ['Content-Range', 'X-Content-Range', 'Content-type'], credential: true, maxAge: 8200}))
 
 app.use(function (req, res, next) {
@@ -79,6 +117,15 @@ app.get('/public_key', [
 ])
 
 app.use(engine(DataModel))
+
+app.get("/tester", function(req,res,next){
+	var delay = Math.random()*3000;
+	setTimeout(function(){
+		res.write("Delay: "+ delay)
+		res.end()
+	}, delay);
+});
+
 app.get('/$', site.index)
 app.use(express.static(path.join(__dirname, 'public')))
 
@@ -115,6 +162,34 @@ app.use(function (err, req, res, next) {
       res.send(edata.message)
     }
   })
+})
+
+async function drain(count){
+	draining=true;
+	console.log("Draining. Active Requests: ", stats.active_requests);
+	if (stats.active_requests<1){
+		return true
+	}
+
+	if (count<1){
+		throw new Error("Timed out waiting for drain");
+	}
+
+	await sleep(1000)
+
+	return await drain(count-1)
+
+}
+
+process.on('SIGINT', async function() {
+	console.log("Got SIGINT, Shutting down.");
+  try {
+		await drain(10)
+		process.exit(0)
+	}catch(err){
+		console.log("Error Draining: ", err);
+		process.exit(1)
+	}
 })
 
 module.exports = app

@@ -1,19 +1,20 @@
 {
   "name": "p3-user",
-  "version": "0.0.1",
+  "version": "2.0.1",
   "private": true,
   "scripts": {
-    "start": "node ./bin/p3-user"
+    "start": "node app.js",
+    "build-image": "./buildImage.sh"
   },
   "dependencies": {
-    "bcrypt": "^3.0.8",
+    "bcrypt": "^5.1.0",
     "body-parser": "^1.19.0",
     "bson": "^0.2.17",
     "cli-progress": "^3.9.0",
     "cors": "^2.5.2",
     "csv": "^5.5.0",
     "dactic": "0.8.12",
-    "dactic-store-mongodb": "1.0.14",
+    "dactic-store-mongodb": "1.0.15",
     "debug": "^2.0.0",
     "ejs": "~2.5.5",
     "express": "^4.16.3",
@@ -28,6 +29,7 @@
     "promised-io": "^0.3.4",
     "randomstring": "^1.0.3",
     "request": "^2.87.0",
+    "sleep-promise": "^9.1.0",
     "through2": "^4.0.2",
     "uuid": "^8.1.0"
   },

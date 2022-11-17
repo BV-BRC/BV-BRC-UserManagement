@@ -28,4 +28,4 @@ var defaults = {
   'serviceTokenDuration': 24 * 31
 }
 
-module.exports = nconf.argv().env().file('./p3-user.conf').defaults(defaults)
+module.exports = nconf.argv().env().file(process.env.P3_USER_CONFIG ||'./p3-user.conf').defaults(defaults)
