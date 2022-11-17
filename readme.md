@@ -81,7 +81,7 @@ time the command is run (or whenever start.sh doesn't exist).
 	- restart.sh
 	- scale.sh <desired instance count>
 	- pm2.sh <pm2 arguments>
-  - shell.sh 
+	- shell.sh 
  
 You will also note an instance.vars file.  This file contains variables pointing at the singularity image, instance name, and bind parameters
 so that they won't need to be provided again.  Further, when an new image comes in,  modify instance.vars to point at the new image, stop the 
