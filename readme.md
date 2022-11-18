@@ -76,12 +76,13 @@ directly usable without changes in most cases. You may copy an existing p3_user.
 above command, and it will use that from the start.  A number of shell scripts for controlling the application will be generated the first
 time the command is run (or whenever start.sh doesn't exist).
 
-	- start.sh
-	- stop.sh
-	- restart.sh
-	- scale.sh <desired instance count>
-	- pm2.sh <pm2 arguments>
-	- shell.sh 
+	- start.sh  : Starts the singularity container and the process manager within
+	- stop.sh   : Stops the process manager and the stops the container
+	- restart.sh: Calls ./stop.sh && ./start.sh
+	- reload.sh : Calls "reload" on the process manager.  This is for graceful reload after modifying the configuration file or for some other reason
+	- scale.sh <desired instance count> : This modifies the number of running instances in the process manager to <desired instance count>
+	- pm2.sh <pm2 arguments> : This is a simple wrapper around the pm2 process manager running inside the container
+	- shell.sh  : This is simple wrapper around the shell command to connect to the instance
  
 You will also note an instance.vars file.  This file contains variables pointing at the singularity image, instance name, and bind parameters
 so that they won't need to be provided again.  Further, when an new image comes in,  modify instance.vars to point at the new image, stop the 
