@@ -2,7 +2,7 @@
 
 source ./instance.vars
 
-$SINGULARITY=${SINGULARITY:-"$(which singularity)"}
+SINGULARITY=${SINGULARITY:-"$(which singularity)"}
 CUR_INST=`$SINGULARITY instance list | grep $SINGULARITY_INSTANCE`
 
 FOUND_INSTANCE=$?
