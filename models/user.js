@@ -113,7 +113,14 @@ Model.prototype.registerUser = function (user) {
   var _self = this
   // console.log("registerUser this: ");
   var siteUrl = config.get('siteURL')
-  var newUser = user // {name: user.name, email: user.email}
+  // var newUser = user // {name: user.name, email: user.email}
+
+  var newUser = {}
+  const cpProps=["email","first_name","last_name","affiliation","middle_name","organisms","interests"]
+  cpProps.forEach((prop)=>{
+    newUser[prop]=user[prop]
+  })
+  
   var username = user.username
   delete user.username
   var pw = user.password
