@@ -13,7 +13,7 @@ var dataModel = new DataModel({})
 var facetTypes = ['public', 'user', 'admin']
 
 Object.keys(models).forEach(function (modelId) {
-  var mongoStore = new MongoStore(modelId, {url: config.get('mongo').url, primaryKey: 'id'})
+  var mongoStore = new MongoStore(modelId, {url: config.get('mongo').url, primaryKey: 'id', db: config.get('mongo').db })
   // console.log("Setup Model: ", modelId);
   var model = new models[modelId](mongoStore, {})
   var mf = {}
