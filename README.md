@@ -1,6 +1,12 @@
-# PATRIC User Service
+# BV-BRC User Service
 
-## Start
+## Overview
+
+The BV-BRC User Service manages the BV-BRC user accounts. It provides REST endpoints for user registration, authentication, and maintenance.
+
+## Usage
+
+### Start
 ```
 npm start
 
@@ -8,9 +14,9 @@ npm start
 ./node_modules/forever/bin/forever start -a -l /var/log/patric/prod/p3-user.log -o /var/log/patric/prod/p3-user.out -e /var/log/patric/prod/p3-user.err bin/p3-user
 ```
 
-## API usage
+### API usage
 
-### Get Authentication Token
+#### Get Authentication Token
 ```
 curl -X POST -H 'Content-Type:application/x-www-form-urlencoded' 'https://user.patricbrc.org/authenticate' \
  -d 'username=_USERNAME_' -d 'password=_PASSWORD_'
@@ -21,32 +27,32 @@ This will return a token like below,
 un=_USERNAME_@patricbrc.org|tokenid=1c04a34e-d351-4a79-b24c-.....
 ```
 
-### Retrieve User Info with Auth Token
+#### Retrieve User Info with Auth Token
 ```
 curl -H 'Accept:application/json' 'https://user.patricbrc.org/user/_USERNAME_' -H 'Authorization: _AUTH_TOKEN_'
 ```
 
-### Renew Auth Token
+#### Renew Auth Token
 ```
 curl 'https://user.patricbrc.org/authenticate/refresh' -H 'Authorization: _AUTH_TOKEN_'
 ```
 
-### More routes
+#### More routes
 - register
 - reset
 - public_key
 
-## Generating Signing Keypair:
+### Generating Signing Keypair:
 ```
 openssl genrsa -out private.pem 2056
 openssl rsa -in private.pem -pubout -out public.pem 
 ```
 
-## Deploy with Singularity
+### Deploy with Singularity
 
 These instructions describe how build a singularity container for p3_user and deploy it.  The process requires singularity and jq.
 
-### Build Singularity Container
+#### Build Singularity Container
 
 ```
 ./buildImage.sh
@@ -58,7 +64,7 @@ npm run build-image
 
 These both generate a file with the name ```p3_user-<VERSION>.sif```.
 
-### Using the singularity container.
+#### Using the singularity container.
 
 The deployment requires two folders, a configuration folder and a log folder.  One can be a child of the other if desired. To bootstrap the
 run the following command:
@@ -88,7 +94,7 @@ You will also note an instance.vars file.  This file contains variables pointing
 so that they won't need to be provided again.  Further, when an new image comes in,  modify instance.vars to point at the new image, stop the 
 existing service (./stop.sh), and then run start.sh to start again with the new image.
 
-### Additional Notes
+#### Additional Notes
 
 - The same image may be used for multiple configuration files.  Deploy an image to alpha (by pointing at the alpha configuration) and when all is good,
 simply use the same image for beta and then production.
