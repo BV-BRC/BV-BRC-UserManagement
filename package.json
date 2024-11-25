@@ -34,7 +34,7 @@
     "uuid": "^8.1.0"
   },
   "devDependencies": {
-    "eslint": "^4.19.1",
+    "eslint": "^8.27.0",
     "eslint-config-standard": "^11.0.0",
     "eslint-plugin-import": "^2.11.0",
     "eslint-plugin-node": "^6.0.1",
