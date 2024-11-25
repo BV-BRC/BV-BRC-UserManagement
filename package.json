@@ -16,7 +16,7 @@
     "dactic": "0.8.12",
     "dactic-store-mongodb": "1.0.15",
     "debug": "^2.0.0",
-    "ejs": "~2.5.5",
+    "ejs": "~3.1.7",
     "express": "^4.16.3",
     "forever": "^3.0.0",
     "fs-extra": "~0.12.0",
