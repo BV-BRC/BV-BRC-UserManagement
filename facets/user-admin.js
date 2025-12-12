@@ -22,6 +22,26 @@ module.exports = function (model, opts) {
     },
 
     patch: function (id, patch, opts) {
+      // WHITELIST of fields admins can modify via PATCH
+      // Note: Admins should use proper admin APIs for sensitive operations
+      var ALLOWED_FIELDS = [
+        '/first_name',
+        '/last_name',
+        '/middle_name',
+        '/affiliation',
+        '/organisms',
+        '/interests',
+        '/email'
+      ]
+
+      // Validate all patch operations
+      for (var i = 0; i < patch.length; i++) {
+        var operation = patch[i]
+        if (ALLOWED_FIELDS.indexOf(operation.path) === -1) {
+          throw new errors.Forbidden('Cannot modify field: ' + operation.path)
+        }
+      }
+
       var _self = this
       return when(this.model.get(id, opts), function (response) {
         var user = response.getData()

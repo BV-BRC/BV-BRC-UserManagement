@@ -35,6 +35,25 @@ module.exports = function (model, opts) {
     },
 
     patch: function (id, patch, opts) {
+      // WHITELIST of fields users can modify on their own account
+      var ALLOWED_FIELDS = [
+        '/first_name',
+        '/last_name',
+        '/affiliation',
+        '/middle_name',
+        '/organisms',
+        '/interests',
+        '/email'
+      ]
+
+      // Validate all patch operations
+      for (var i = 0; i < patch.length; i++) {
+        var operation = patch[i]
+        if (ALLOWED_FIELDS.indexOf(operation.path) === -1) {
+          throw new errors.Forbidden('Cannot modify field: ' + operation.path)
+        }
+      }
+
       // console.log('facet patch', id, patch)
       var _self = this
       return when(this.model.get(id, opts), function (response) {
