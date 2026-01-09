@@ -6,6 +6,16 @@ var when = require('promised-io/promise').when
 var errors = require('dactic/errors')
 var UserModel = DataModel.get('user')
 var config = require("../config")
+var rateLimit = require('../middleware/rateLimit')
+
+// Rate limiter for verification emails: 3 requests per hour per user ID
+var verifyRateLimit = rateLimit({
+  maxRequests: 3,
+  windowMs: 60 * 60 * 1000, // 1 hour
+  endpoint: 'verify',
+  keyFn: function (req) { return req.body && req.body.id },
+  message: 'Too many verification email requests. Please try again later.'
+})
 
 
 /* Verify an email with a verification code */
@@ -39,6 +49,7 @@ router.get('/:email/:code', [
 router.post('/', [
   bodyParser.urlencoded({ extended: false }),
   bodyParser.json(),
+  verifyRateLimit,
   function (req, res, next) {
     // console.log("req.body: ", req.body)
 
