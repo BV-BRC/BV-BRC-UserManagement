@@ -6,9 +6,19 @@ var when = require('promised-io/promise').when
 var errors = require('dactic/errors')
 var UserModel = DataModel.get('user')
 var config = require("../config")
+var rateLimit = require('../middleware/rateLimit')
 // var generateToken = require('../generateToken')
 // var validateToken = require('../validateToken')
 // var bcrypt = require('bcrypt')
+
+// Rate limiter for password reset: 3 requests per hour per email
+var resetRateLimit = rateLimit({
+  maxRequests: 3,
+  windowMs: 60 * 60 * 1000, // 1 hour
+  endpoint: 'reset',
+  keyFn: function (req) { return req.body && req.body.email },
+  message: 'Too many password reset requests for this email. Please try again later.'
+})
 
 router.use(function (req, res, next) {
   console.log('Reset Route Start')
@@ -65,6 +75,7 @@ router.post('/:email/:code', [
 
 router.post('/', [
   bodyParser.urlencoded({ extended: false }),
+  resetRateLimit,
   function (req, res, next) {
     if (!req.body || !req.body.email) {
       return next(new errors.NotAcceptable('Missing Email'))
