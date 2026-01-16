@@ -1,6 +1,8 @@
 var ModelBase = require('./base')
 var util = require('util')
 var uuid = require('uuid')
+var When = require('promised-io/promise').when
+var Defer = require('promised-io/promise').defer
 
 var Model = module.exports = function (store, opts) {
   ModelBase.apply(this, arguments)
@@ -58,9 +60,22 @@ Model.prototype.recordRequest = function (email, endpoint) {
  */
 Model.prototype.countRequests = function (email, endpoint, windowMs) {
   var windowStart = Date.now() - windowMs
-  var query = 'and(eq(email,' + encodeURIComponent(email.toLowerCase()) + '),eq(endpoint,' + endpoint + '),gt(createdAt,' + windowStart + '))'
-  return this.query(query, { select: 'id' }).then(function (result) {
-    return result.length
+  var normalizedEmail = email.toLowerCase()
+  var self = this
+
+  // Query all records for this email/endpoint, then filter in JavaScript
+  var query = 'and(eq(email,' + encodeURIComponent(normalizedEmail) + '),eq(endpoint,' + endpoint + '))'
+
+  return When(this.query(query, { select: 'createdAt' }), function (result) {
+    var data = result.getData ? result.getData() : result
+    if (!Array.isArray(data)) {
+      return 0
+    }
+    // Filter to only records within the time window
+    var recentCount = data.filter(function (record) {
+      return record.createdAt > windowStart
+    }).length
+    return recentCount
   })
 }
 
@@ -73,12 +88,28 @@ Model.prototype.countRequests = function (email, endpoint, windowMs) {
  */
 Model.prototype.getOldestRequestTime = function (email, endpoint, windowMs) {
   var windowStart = Date.now() - windowMs
-  var query = 'and(eq(email,' + encodeURIComponent(email.toLowerCase()) + '),eq(endpoint,' + endpoint + '),gt(createdAt,' + windowStart + '))'
-  return this.query(query, { select: 'createdAt', sort: '+createdAt', limit: 1 }).then(function (result) {
-    if (result.length > 0) {
-      return result[0].createdAt
+  var normalizedEmail = email.toLowerCase()
+
+  // Query all records for this email/endpoint, then filter and sort in JavaScript
+  var query = 'and(eq(email,' + encodeURIComponent(normalizedEmail) + '),eq(endpoint,' + endpoint + '))'
+
+  return When(this.query(query, { select: 'createdAt' }), function (result) {
+    var data = result.getData ? result.getData() : result
+    if (!Array.isArray(data) || data.length === 0) {
+      return null
     }
-    return null
+    // Filter to only records within the time window and find the oldest
+    var recentRecords = data.filter(function (record) {
+      return record.createdAt > windowStart
+    })
+    if (recentRecords.length === 0) {
+      return null
+    }
+    // Sort by createdAt ascending and return the oldest
+    recentRecords.sort(function (a, b) {
+      return a.createdAt - b.createdAt
+    })
+    return recentRecords[0].createdAt
   })
 }
 
@@ -89,13 +120,25 @@ Model.prototype.getOldestRequestTime = function (email, endpoint, windowMs) {
  */
 Model.prototype.cleanup = function (windowMs) {
   var windowStart = Date.now() - windowMs
-  var query = 'lt(createdAt,' + windowStart + ')'
   var self = this
-  return this.query(query, { select: 'id' }).then(function (result) {
-    if (result.length === 0) {
-      return Promise.resolve()
+
+  // Get all records and filter to expired ones
+  return When(this.query('', { select: 'id,createdAt' }), function (result) {
+    var data = result.getData ? result.getData() : result
+    if (!Array.isArray(data) || data.length === 0) {
+      return true
     }
-    var deletePromises = result.map(function (record) {
+
+    var expiredRecords = data.filter(function (record) {
+      return record.createdAt < windowStart
+    })
+
+    if (expiredRecords.length === 0) {
+      return true
+    }
+
+    // Delete expired records
+    var deletePromises = expiredRecords.map(function (record) {
       return self.delete(record.id)
     })
     return Promise.all(deletePromises)
