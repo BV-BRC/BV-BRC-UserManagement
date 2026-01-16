@@ -58,7 +58,7 @@ Model.prototype.recordRequest = function (email, endpoint) {
  */
 Model.prototype.countRequests = function (email, endpoint, windowMs) {
   var windowStart = Date.now() - windowMs
-  var query = 'and(eq(email,' + email.toLowerCase() + '),eq(endpoint,' + endpoint + '),gt(createdAt,' + windowStart + '))'
+  var query = 'and(eq(email,' + encodeURIComponent(email.toLowerCase()) + '),eq(endpoint,' + endpoint + '),gt(createdAt,' + windowStart + '))'
   return this.query(query, { select: 'id' }).then(function (result) {
     return result.length
   })
@@ -73,7 +73,7 @@ Model.prototype.countRequests = function (email, endpoint, windowMs) {
  */
 Model.prototype.getOldestRequestTime = function (email, endpoint, windowMs) {
   var windowStart = Date.now() - windowMs
-  var query = 'and(eq(email,' + email.toLowerCase() + '),eq(endpoint,' + endpoint + '),gt(createdAt,' + windowStart + '))'
+  var query = 'and(eq(email,' + encodeURIComponent(email.toLowerCase()) + '),eq(endpoint,' + endpoint + '),gt(createdAt,' + windowStart + '))'
   return this.query(query, { select: 'createdAt', sort: '+createdAt', limit: 1 }).then(function (result) {
     if (result.length > 0) {
       return result[0].createdAt
