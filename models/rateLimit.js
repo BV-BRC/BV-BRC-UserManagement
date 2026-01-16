@@ -8,6 +8,7 @@ var Model = module.exports = function (store, opts) {
   ModelBase.apply(this, arguments)
   this._mongoClient = null
   this._collection = null
+  this._indexCreated = false
 }
 
 util.inherits(Model, ModelBase)
@@ -56,6 +57,24 @@ Model.prototype._getCollection = function () {
       self._mongoClient = client
       var db = client.db(dbName)
       self._collection = db.collection('rateLimit')
+
+      // Create TTL index to auto-expire old records after 1 hour
+      if (!self._indexCreated) {
+        self._collection.createIndex(
+          { createdAt: 1 },
+          { expireAfterSeconds: 3600, background: true }
+        ).then(function () {
+          console.log('Rate limit TTL index created')
+          self._indexCreated = true
+        }).catch(function (err) {
+          // Index may already exist, that's fine
+          if (err.code !== 85) { // 85 = IndexOptionsConflict (index already exists)
+            console.error('Error creating rate limit TTL index:', err)
+          }
+          self._indexCreated = true
+        })
+      }
+
       return self._collection
     })
     .catch(function (err) {
@@ -75,7 +94,7 @@ Model.prototype.recordRequest = function (email, endpoint) {
     id: uuid.v4(),
     email: email.toLowerCase(),
     endpoint: endpoint,
-    createdAt: Date.now()
+    createdAt: new Date()  // Use Date object for TTL index compatibility
   }
 
   return this._getCollection()
@@ -97,7 +116,7 @@ Model.prototype.recordRequest = function (email, endpoint) {
  * @returns {Promise<number>} - Resolves with count of requests
  */
 Model.prototype.countRequests = function (email, endpoint, windowMs) {
-  var windowStart = Date.now() - windowMs
+  var windowStart = new Date(Date.now() - windowMs)
   var normalizedEmail = email.toLowerCase()
 
   return this._getCollection()
@@ -123,7 +142,7 @@ Model.prototype.countRequests = function (email, endpoint, windowMs) {
  * @returns {Promise<number|null>} - Resolves with oldest timestamp or null
  */
 Model.prototype.getOldestRequestTime = function (email, endpoint, windowMs) {
-  var windowStart = Date.now() - windowMs
+  var windowStart = new Date(Date.now() - windowMs)
   var normalizedEmail = email.toLowerCase()
 
   return this._getCollection()
@@ -137,7 +156,8 @@ Model.prototype.getOldestRequestTime = function (email, endpoint, windowMs) {
     })
     .then(function (docs) {
       if (docs && docs.length > 0) {
-        return docs[0].createdAt
+        // Return timestamp in milliseconds for Retry-After calculation
+        return docs[0].createdAt.getTime()
       }
       return null
     })
@@ -153,7 +173,7 @@ Model.prototype.getOldestRequestTime = function (email, endpoint, windowMs) {
  * @returns {Promise} - Resolves when cleanup is complete
  */
 Model.prototype.cleanup = function (windowMs) {
-  var windowStart = Date.now() - windowMs
+  var windowStart = new Date(Date.now() - windowMs)
 
   return this._getCollection()
     .then(function (collection) {
