@@ -1,11 +1,13 @@
 var ModelBase = require('./base')
 var util = require('util')
 var uuid = require('uuid')
-var When = require('promised-io/promise').when
+var config = require('../config')
+var MongoClient = require('mongodb').MongoClient
 
 var Model = module.exports = function (store, opts) {
-  this.store = store  // Keep reference to the MongoDB store
   ModelBase.apply(this, arguments)
+  this._mongoClient = null
+  this._collection = null
 }
 
 util.inherits(Model, ModelBase)
@@ -36,6 +38,33 @@ Model.prototype.schema = {
 }
 
 /**
+ * Get or create MongoDB collection connection
+ */
+Model.prototype._getCollection = function () {
+  var self = this
+
+  if (self._collection) {
+    return Promise.resolve(self._collection)
+  }
+
+  var mongoConfig = config.get('mongo')
+  var url = mongoConfig.url
+  var dbName = mongoConfig.db
+
+  return MongoClient.connect(url, { useUnifiedTopology: true })
+    .then(function (client) {
+      self._mongoClient = client
+      var db = client.db(dbName)
+      self._collection = db.collection('rateLimit')
+      return self._collection
+    })
+    .catch(function (err) {
+      console.error('Failed to connect to MongoDB for rate limiting:', err)
+      return null
+    })
+}
+
+/**
  * Record a rate-limited request
  * @param {string} email - Email address
  * @param {string} endpoint - Endpoint name
@@ -48,11 +77,20 @@ Model.prototype.recordRequest = function (email, endpoint) {
     endpoint: endpoint,
     createdAt: Date.now()
   }
-  return this.post(record)
+
+  return this._getCollection()
+    .then(function (collection) {
+      if (!collection) return null
+      return collection.insertOne(record)
+    })
+    .catch(function (err) {
+      console.error('Error recording rate limit request:', err)
+      return null
+    })
 }
 
 /**
- * Count requests within a time window using direct MongoDB query
+ * Count requests within a time window
  * @param {string} email - Email address
  * @param {string} endpoint - Endpoint name
  * @param {number} windowMs - Time window in milliseconds
@@ -61,29 +99,20 @@ Model.prototype.recordRequest = function (email, endpoint) {
 Model.prototype.countRequests = function (email, endpoint, windowMs) {
   var windowStart = Date.now() - windowMs
   var normalizedEmail = email.toLowerCase()
-  var self = this
 
-  return new Promise(function (resolve, reject) {
-    // Access the underlying MongoDB collection directly
-    self.store.getCollection(function (err, collection) {
-      if (err) {
-        console.error('Error getting collection:', err)
-        return resolve(0) // Fail open
-      }
-
-      collection.countDocuments({
+  return this._getCollection()
+    .then(function (collection) {
+      if (!collection) return 0
+      return collection.countDocuments({
         email: normalizedEmail,
         endpoint: endpoint,
         createdAt: { $gt: windowStart }
-      }, function (err, count) {
-        if (err) {
-          console.error('Error counting documents:', err)
-          return resolve(0) // Fail open
-        }
-        resolve(count)
       })
     })
-  })
+    .catch(function (err) {
+      console.error('Error counting rate limit requests:', err)
+      return 0 // Fail open
+    })
 }
 
 /**
@@ -96,33 +125,26 @@ Model.prototype.countRequests = function (email, endpoint, windowMs) {
 Model.prototype.getOldestRequestTime = function (email, endpoint, windowMs) {
   var windowStart = Date.now() - windowMs
   var normalizedEmail = email.toLowerCase()
-  var self = this
 
-  return new Promise(function (resolve, reject) {
-    // Access the underlying MongoDB collection directly
-    self.store.getCollection(function (err, collection) {
-      if (err) {
-        console.error('Error getting collection:', err)
-        return resolve(null)
-      }
-
-      collection.find({
+  return this._getCollection()
+    .then(function (collection) {
+      if (!collection) return null
+      return collection.find({
         email: normalizedEmail,
         endpoint: endpoint,
         createdAt: { $gt: windowStart }
-      }).sort({ createdAt: 1 }).limit(1).toArray(function (err, docs) {
-        if (err) {
-          console.error('Error finding oldest document:', err)
-          return resolve(null)
-        }
-        if (docs && docs.length > 0) {
-          resolve(docs[0].createdAt)
-        } else {
-          resolve(null)
-        }
-      })
+      }).sort({ createdAt: 1 }).limit(1).toArray()
     })
-  })
+    .then(function (docs) {
+      if (docs && docs.length > 0) {
+        return docs[0].createdAt
+      }
+      return null
+    })
+    .catch(function (err) {
+      console.error('Error getting oldest rate limit request:', err)
+      return null
+    })
 }
 
 /**
@@ -132,23 +154,19 @@ Model.prototype.getOldestRequestTime = function (email, endpoint, windowMs) {
  */
 Model.prototype.cleanup = function (windowMs) {
   var windowStart = Date.now() - windowMs
-  var self = this
 
-  return new Promise(function (resolve, reject) {
-    self.store.getCollection(function (err, collection) {
-      if (err) {
-        console.error('Error getting collection for cleanup:', err)
-        return resolve(true)
-      }
-
-      collection.deleteMany({
+  return this._getCollection()
+    .then(function (collection) {
+      if (!collection) return true
+      return collection.deleteMany({
         createdAt: { $lt: windowStart }
-      }, function (err, result) {
-        if (err) {
-          console.error('Error deleting expired records:', err)
-        }
-        resolve(true)
       })
     })
-  })
+    .then(function () {
+      return true
+    })
+    .catch(function (err) {
+      console.error('Error cleaning up rate limit records:', err)
+      return true
+    })
 }
