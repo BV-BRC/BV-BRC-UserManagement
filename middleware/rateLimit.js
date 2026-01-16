@@ -23,6 +23,11 @@ module.exports = function (options) {
   return function rateLimitMiddleware (req, res, next) {
     var RateLimitModel = DataModel.get('rateLimit')
 
+    if (!RateLimitModel) {
+      console.error('Rate limit model not found!')
+      return next()
+    }
+
     // Extract the key (email) from the request
     var key = keyFn(req)
     if (!key) {
@@ -32,11 +37,11 @@ module.exports = function (options) {
 
     key = key.toLowerCase()
 
-    debug('Checking rate limit for key:', key, 'endpoint:', endpoint)
+    console.log('Rate limit check for:', key, 'endpoint:', endpoint)
 
     // Count existing requests in the window
     when(RateLimitModel.countRequests(key, endpoint, windowMs), function (count) {
-      debug('Current request count:', count, 'max:', maxRequests)
+      console.log('Rate limit count:', count, 'max:', maxRequests)
 
       if (count >= maxRequests) {
         // Rate limited - calculate retry-after
@@ -44,7 +49,7 @@ module.exports = function (options) {
           var retryAfter = Math.ceil((oldestTime + windowMs - Date.now()) / 1000)
           if (retryAfter < 0) retryAfter = 60 // fallback to 1 minute
 
-          debug('Rate limit exceeded. Retry after:', retryAfter, 'seconds')
+          console.log('Rate limit exceeded! Retry after:', retryAfter, 'seconds')
 
           res.set('Retry-After', retryAfter)
           res.status(429)
@@ -55,7 +60,7 @@ module.exports = function (options) {
           })
         }, function (err) {
           // Error getting oldest time, still return 429
-          debug('Error getting oldest request time:', err)
+          console.error('Error getting oldest request time:', err)
           res.set('Retry-After', 3600)
           res.status(429)
           res.json({
@@ -67,17 +72,17 @@ module.exports = function (options) {
       } else {
         // Record this request and continue
         when(RateLimitModel.recordRequest(key, endpoint), function () {
-          debug('Request recorded, continuing')
+          console.log('Rate limit request recorded for:', key)
           next()
         }, function (err) {
           // Error recording request, log but continue (fail open)
-          debug('Error recording rate limit request:', err)
+          console.error('Error recording rate limit request:', err)
           next()
         })
       }
     }, function (err) {
       // Error checking rate limit, log but continue (fail open)
-      debug('Error checking rate limit:', err)
+      console.error('Error checking rate limit:', err)
       next()
     })
   }
