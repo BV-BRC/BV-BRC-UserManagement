@@ -2,7 +2,6 @@ var ModelBase = require('./base')
 var util = require('util')
 var uuid = require('uuid')
 var When = require('promised-io/promise').when
-var Defer = require('promised-io/promise').defer
 
 var Model = module.exports = function (store, opts) {
   ModelBase.apply(this, arguments)
@@ -61,12 +60,11 @@ Model.prototype.recordRequest = function (email, endpoint) {
 Model.prototype.countRequests = function (email, endpoint, windowMs) {
   var windowStart = Date.now() - windowMs
   var normalizedEmail = email.toLowerCase()
-  var self = this
 
-  // Query all records for this email/endpoint, then filter in JavaScript
+  // Query using the same pattern as other models in this codebase
   var query = 'and(eq(email,' + encodeURIComponent(normalizedEmail) + '),eq(endpoint,' + endpoint + '))'
 
-  return When(this.query(query, { select: 'createdAt' }), function (result) {
+  return When(this.query(query), function (result) {
     var data = result.getData ? result.getData() : result
     if (!Array.isArray(data)) {
       return 0
@@ -90,10 +88,10 @@ Model.prototype.getOldestRequestTime = function (email, endpoint, windowMs) {
   var windowStart = Date.now() - windowMs
   var normalizedEmail = email.toLowerCase()
 
-  // Query all records for this email/endpoint, then filter and sort in JavaScript
+  // Query using the same pattern as other models in this codebase
   var query = 'and(eq(email,' + encodeURIComponent(normalizedEmail) + '),eq(endpoint,' + endpoint + '))'
 
-  return When(this.query(query, { select: 'createdAt' }), function (result) {
+  return When(this.query(query), function (result) {
     var data = result.getData ? result.getData() : result
     if (!Array.isArray(data) || data.length === 0) {
       return null
@@ -123,7 +121,7 @@ Model.prototype.cleanup = function (windowMs) {
   var self = this
 
   // Get all records and filter to expired ones
-  return When(this.query('', { select: 'id,createdAt' }), function (result) {
+  return When(this.query(''), function (result) {
     var data = result.getData ? result.getData() : result
     if (!Array.isArray(data) || data.length === 0) {
       return true
