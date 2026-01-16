@@ -4,6 +4,7 @@ var uuid = require('uuid')
 var When = require('promised-io/promise').when
 
 var Model = module.exports = function (store, opts) {
+  this.store = store  // Keep reference to the MongoDB store
   ModelBase.apply(this, arguments)
 }
 
@@ -51,7 +52,7 @@ Model.prototype.recordRequest = function (email, endpoint) {
 }
 
 /**
- * Count requests within a time window
+ * Count requests within a time window using direct MongoDB query
  * @param {string} email - Email address
  * @param {string} endpoint - Endpoint name
  * @param {number} windowMs - Time window in milliseconds
@@ -60,20 +61,28 @@ Model.prototype.recordRequest = function (email, endpoint) {
 Model.prototype.countRequests = function (email, endpoint, windowMs) {
   var windowStart = Date.now() - windowMs
   var normalizedEmail = email.toLowerCase()
+  var self = this
 
-  // Query using the same pattern as other models in this codebase
-  var query = 'and(eq(email,' + encodeURIComponent(normalizedEmail) + '),eq(endpoint,' + endpoint + '))'
+  return new Promise(function (resolve, reject) {
+    // Access the underlying MongoDB collection directly
+    self.store.getCollection(function (err, collection) {
+      if (err) {
+        console.error('Error getting collection:', err)
+        return resolve(0) // Fail open
+      }
 
-  return When(this.query(query), function (result) {
-    var data = result.getData ? result.getData() : result
-    if (!Array.isArray(data)) {
-      return 0
-    }
-    // Filter to only records within the time window
-    var recentCount = data.filter(function (record) {
-      return record.createdAt > windowStart
-    }).length
-    return recentCount
+      collection.countDocuments({
+        email: normalizedEmail,
+        endpoint: endpoint,
+        createdAt: { $gt: windowStart }
+      }, function (err, count) {
+        if (err) {
+          console.error('Error counting documents:', err)
+          return resolve(0) // Fail open
+        }
+        resolve(count)
+      })
+    })
   })
 }
 
@@ -87,27 +96,32 @@ Model.prototype.countRequests = function (email, endpoint, windowMs) {
 Model.prototype.getOldestRequestTime = function (email, endpoint, windowMs) {
   var windowStart = Date.now() - windowMs
   var normalizedEmail = email.toLowerCase()
+  var self = this
 
-  // Query using the same pattern as other models in this codebase
-  var query = 'and(eq(email,' + encodeURIComponent(normalizedEmail) + '),eq(endpoint,' + endpoint + '))'
+  return new Promise(function (resolve, reject) {
+    // Access the underlying MongoDB collection directly
+    self.store.getCollection(function (err, collection) {
+      if (err) {
+        console.error('Error getting collection:', err)
+        return resolve(null)
+      }
 
-  return When(this.query(query), function (result) {
-    var data = result.getData ? result.getData() : result
-    if (!Array.isArray(data) || data.length === 0) {
-      return null
-    }
-    // Filter to only records within the time window and find the oldest
-    var recentRecords = data.filter(function (record) {
-      return record.createdAt > windowStart
+      collection.find({
+        email: normalizedEmail,
+        endpoint: endpoint,
+        createdAt: { $gt: windowStart }
+      }).sort({ createdAt: 1 }).limit(1).toArray(function (err, docs) {
+        if (err) {
+          console.error('Error finding oldest document:', err)
+          return resolve(null)
+        }
+        if (docs && docs.length > 0) {
+          resolve(docs[0].createdAt)
+        } else {
+          resolve(null)
+        }
+      })
     })
-    if (recentRecords.length === 0) {
-      return null
-    }
-    // Sort by createdAt ascending and return the oldest
-    recentRecords.sort(function (a, b) {
-      return a.createdAt - b.createdAt
-    })
-    return recentRecords[0].createdAt
   })
 }
 
@@ -120,25 +134,21 @@ Model.prototype.cleanup = function (windowMs) {
   var windowStart = Date.now() - windowMs
   var self = this
 
-  // Get all records and filter to expired ones
-  return When(this.query(''), function (result) {
-    var data = result.getData ? result.getData() : result
-    if (!Array.isArray(data) || data.length === 0) {
-      return true
-    }
+  return new Promise(function (resolve, reject) {
+    self.store.getCollection(function (err, collection) {
+      if (err) {
+        console.error('Error getting collection for cleanup:', err)
+        return resolve(true)
+      }
 
-    var expiredRecords = data.filter(function (record) {
-      return record.createdAt < windowStart
+      collection.deleteMany({
+        createdAt: { $lt: windowStart }
+      }, function (err, result) {
+        if (err) {
+          console.error('Error deleting expired records:', err)
+        }
+        resolve(true)
+      })
     })
-
-    if (expiredRecords.length === 0) {
-      return true
-    }
-
-    // Delete expired records
-    var deletePromises = expiredRecords.map(function (record) {
-      return self.delete(record.id)
-    })
-    return Promise.all(deletePromises)
   })
 }
