@@ -43,13 +43,18 @@ module.exports = function (model, opts) {
         '/middle_name',
         '/organisms',
         '/interests',
-        '/email'
+        '/email',
+        '/settings'
       ]
 
       // Validate all patch operations
+      // Allows exact matches or nested paths (e.g., /settings/theme matches /settings)
       for (var i = 0; i < patch.length; i++) {
         var operation = patch[i]
-        if (ALLOWED_FIELDS.indexOf(operation.path) === -1) {
+        var isAllowed = ALLOWED_FIELDS.some(function (field) {
+          return operation.path === field || operation.path.indexOf(field + '/') === 0
+        })
+        if (!isAllowed) {
           throw new errors.Forbidden('Cannot modify field: ' + operation.path)
         }
       }
