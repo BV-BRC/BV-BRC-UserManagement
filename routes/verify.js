@@ -7,6 +7,7 @@ var errors = require('dactic/errors')
 var UserModel = DataModel.get('user')
 var config = require("../config")
 var rateLimit = require('../middleware/rateLimit')
+var utils = require('../utils')
 
 // Rate limiter for verification emails: 3 requests per hour per user ID
 var verifyRateLimit = rateLimit({
@@ -25,8 +26,13 @@ router.get('/:email/:code', [
       return next(new errors.NotAcceptable('Missing Data in Reset URL'))
     }
 
+    // Validate code format to prevent RQL injection (e.g., "re:.*" regex patterns)
+    if (!utils.isValidCode(req.params.code)) {
+      return res.redirect(config.get('p3Home') + '/verify_failure')
+    }
+
     console.log('Verifying Account Email: ', req.params.email, req.params.code)
-    when(UserModel.query('and(eq(email,' + encodeURIComponent(req.params.email) + '),eq(verification_code,' + req.params.code + '))&limit(1)'), function (results) {
+    when(UserModel.query('and(eq(email,' + encodeURIComponent(req.params.email) + '),eq(verification_code,' + encodeURIComponent(req.params.code) + '))&limit(1)'), function (results) {
       var r = results.getData()
       // console.log("r: ", r)
       if (r.length < 1) {
