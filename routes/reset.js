@@ -7,6 +7,7 @@ var errors = require('dactic/errors')
 var UserModel = DataModel.get('user')
 var config = require("../config")
 var rateLimit = require('../middleware/rateLimit')
+var utils = require('../utils')
 // var generateToken = require('../generateToken')
 // var validateToken = require('../validateToken')
 // var bcrypt = require('bcrypt')
@@ -32,8 +33,13 @@ router.get('/:email/:code', [
       return next(new errors.NotAcceptable('Missing Data in Reset URL'))
     }
 
+    // Validate code format to prevent RQL injection (e.g., "re:.*" regex patterns)
+    if (!utils.isValidCode(req.params.code)) {
+      return next(new errors.NotAcceptable('Invalid Reset Code'))
+    }
+
     console.log('Resetting Account: ', req.params.email, req.params.code)
-    when(UserModel.query('and(eq(email,' + encodeURIComponent(req.params.email) + '),eq(resetCode,' + req.params.code + '))&limit(1)'), function (results) {
+    when(UserModel.query('and(eq(email,' + encodeURIComponent(req.params.email) + '),eq(resetCode,' + encodeURIComponent(req.params.code) + '))&limit(1)'), function (results) {
       var r = results.getData()
       if (r.length < 1) {
         return next(new errors.NotAcceptable('Invalid Reset Code'))
@@ -55,8 +61,14 @@ router.post('/:email/:code', [
     if (!req.params || !req.params.email || !req.params.code || !req.body || !req.body.password) {
       return next(new errors.NotAcceptable('Missing Data form or URL based data'))
     }
+
+    // Validate code format to prevent RQL injection (e.g., "re:.*" regex patterns)
+    if (!utils.isValidCode(req.params.code)) {
+      return next(new errors.NotAcceptable('Invalid Reset Code'))
+    }
+
     console.log('Resetting Account: ', req.params.email, req.params.code)
-    when(UserModel.query('and(eq(email,' + encodeURIComponent(req.params.email) + '),eq(resetCode,' + req.params.code + '))&limit(1)'), function (results) {
+    when(UserModel.query('and(eq(email,' + encodeURIComponent(req.params.email) + '),eq(resetCode,' + encodeURIComponent(req.params.code) + '))&limit(1)'), function (results) {
       var r = results.getData()
       if (r.length < 1) {
         return next(new errors.NotAcceptable('Invalid Reset Code'))
