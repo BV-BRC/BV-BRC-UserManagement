@@ -16,8 +16,22 @@ npm start                    # Runs: node app.js
 npm run build-image          # Runs: ./buildImage.sh
 
 # Lint
-./node_modules/.bin/eslint . # ESLint with standard config
+./node_modules/.bin/eslint . # ESLint 8 with eslint-config-standard 17
 ```
+
+There is **no test suite**. `npm test` is not defined, and there are no test
+files. Verify changes by exercising the affected path directly — see
+"Verifying changes without a test suite" below.
+
+**Lint is not a gate.** `eslint .` reports ~850 errors, essentially all
+pre-existing style debt (`semi`, `quotes`, `space-before-function-paren`).
+Judge a change by whether it adds *new* errors on the files it touches, not by
+the total. One known pre-existing error in `validateToken.js:2` (`no-useless-escape`
+on the user-id regex) is deliberately left alone — editing that regex changes
+token parsing.
+
+Production runs under **pm2**, not `forever` (removed). The singularity
+container starts it with `pm2-runtime`; see `singularity/default_pm2_config.js`.
 
 ## Configuration
 
@@ -44,8 +58,13 @@ openssl rsa -in private.pem -pubout -out public.pem
 ### Authentication Flow
 
 1. **Token Generation** (`generateToken.js`) - Creates RSA-SHA1 signed bearer tokens with format: `un=user@realm|tokenid=...|expiry=...|sig=...`
-2. **Token Validation** (`validateToken.js`) - Validates tokens by fetching public key from SigningSubject URL and verifying signature
+2. **Token Validation** (`validateToken.js`) - Checks the token's `SigningSubject` against the configured `signingSubjectURL`, then fetches that public key and verifies the signature. **The subject check must happen before the fetch** — see "Token SigningSubject" under Security Considerations.
 3. **Token Middleware** (`middleware/token.js`) - Extracts and validates Authorization header, sets `req.user` and `req.apiPrivilegeFacet`
+
+Token fields are parsed by splitting each `|`-separated pair on its **first**
+`=`, not `split('=')[1]`. `SigningSubject` is a URL and contains `=` whenever it
+carries a query string; the naive split truncates it, which silently breaks both
+the subject match and signature verification.
 
 ### Data Model Layer (dactic framework)
 
@@ -155,3 +174,58 @@ RQL special syntax to watch for:
 - Format: exactly 5 uppercase alphanumeric characters (e.g., `A1B2C`)
 - Validate with `utils.isValidCode()` before use in queries
 - Always use `encodeURIComponent()` when embedding in RQL queries
+
+## Verifying changes without a test suite
+
+There are no tests, so verification is manual. These throwaway harnesses have
+each caught a real defect and are worth rebuilding rather than skipping:
+
+**Boot the app.** Needs a config, a keypair, and something on :27017. Without a
+local mongod, a TCP server that accepts and never replies keeps the driver
+hanging in connect instead of crashing, which is enough to exercise the HTTP
+routes:
+
+```bash
+node -e "require('net').createServer(s=>s.on('error',()=>{})).listen(27017,'127.0.0.1')" &
+P3_USER_CONFIG=/tmp/t.conf node app.js
+# / renders index.ejs; /public_key returns the key. Both work without mongo.
+```
+
+**Token round trip.** Point `signingSubjectURL` at a local HTTP server that
+serves `{"pubkey": "<PEM>"}`, then mint with `generateToken.js` and verify with
+`validateToken.js`. This is the only way to test the auth path end to end, and
+it is how the SigningSubject bypass was confirmed.
+
+**Mail.** `models/user.js` `mail()` can be driven against a throwaway SMTP
+server (a `net` server speaking enough of the protocol to reach `DATA`).
+Asserting on the delivered message caught that the nodemailer upgrade needed
+`{sendmail: true}` on the `localSendmail` path.
+
+**Templates.** `ejs.compile()` every file in `views/` after any ejs change.
+Note `p3header.ejs` requires `request.applicationOptions` and `request.package`,
+which nothing in this repo supplies — rendering it standalone fails on *any*
+ejs version, so that failure is pre-existing, not a regression you introduced.
+
+Assert on **outcomes**, not on "it didn't throw": every bug found in this
+service so far produced a plausible-looking success.
+
+## Dependencies
+
+Updated 2026-08-17 (PRs #40, #42): `npm audit` went 58 → 7. All 18 open
+dependabot PRs were superseded and closed.
+
+- **Do not re-add `request`.** It is deprecated and was the source of every
+  remaining advisory. `validateToken.js` uses node's built-in `http`/`https`.
+- The remaining 7 advisories are **`dactic@0.8.12`'s doing**: it declares
+  `request` and so pulls it (plus `form-data`, `qs`, `tough-cookie`) into the
+  tree, while never actually `require`-ing it — a phantom dependency. 0.8.12 is
+  the newest published release, so clearing the rest needs dactic forked or
+  updated. Do not chase these to zero any other way.
+- **`npm audit fix --force` is unsafe here.** Its suggested "fix" for `dactic`
+  is 0.0.9 — a downgrade from 0.8.12 that would wreck the data layer. Upgrade
+  packages individually and verify each.
+- `mongodb` is declared explicitly for `bin/verify_users.js`; it was previously
+  only present transitively via `dactic-store-mongodb`.
+- Removed as unused: `bson`, `md5`, `forever`, `csv`, `cli-progress`,
+  `through2`, `nodemailer-smtp-transport`. `bin/import_vipr.js` was deleted
+  (ViPR import no longer needed), which is what freed the last three.
