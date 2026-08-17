@@ -10,9 +10,14 @@ The BV-BRC User Service manages the BV-BRC user accounts. It provides REST endpo
 ```
 npm start
 
-# in production
-./node_modules/forever/bin/forever start -a -l /var/log/patric/prod/p3-user.log -o /var/log/patric/prod/p3-user.out -e /var/log/patric/prod/p3-user.err bin/p3-user
+# in production -- long-running services are managed by pm2
+pm2 start /config/pm2.config.js
+pm2 reload /config/pm2.config.js   # zero-downtime restart
+pm2 stop p3_user
 ```
+
+The singularity container starts the service with `pm2-runtime` and seeds
+`/config/pm2.config.js` from `singularity/default_pm2_config.js` on first run.
 
 ### API usage
 

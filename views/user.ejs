@@ -1,10 +1,10 @@
 <html>
         <head>
-                <% include header %>
+                <%- include('header') %>
         </head>
 	<body class="claro patric <% if (request.isAuthenticated && request.isAuthenticated()) { %>Authenticated<% } %>">
 
-                <% include p3header %>
+                <%- include('p3header') %>
 		<% if (request.user && (results.id == request.user.id)){ %>
 		<div>
 			<div class="UserProfileForm">
@@ -39,6 +39,6 @@
 			<p><%= results.first_name %> <%= results.last_name %></p>
 			<p><%= results.affiliation %></p>
 		<% } %>
-		  <% include javascript %>
+		  <%- include('javascript') %>
         </body>
 </html>
