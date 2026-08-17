@@ -4,6 +4,7 @@ var crypto = require('crypto')
 var request = require('request')
 var Defer = require('promised-io/promise').defer
 var when = require('promised-io/promise').when
+var withUserAgent = require('./userAgent').withUserAgent
 
 var ssCache = {}
 
@@ -13,9 +14,19 @@ var getSigner = function (signer) {
     def.resolve(ssCache[signer])
     return def.promise
   }
-  request.get({url: signer, json: true}, function (err, response, body) {
+  // The User-Agent is required: Cloudflare answers UA-less clients with a 403
+  // challenge page, which would make `body` an HTML string rather than JSON.
+  // See userAgent.js.
+  request.get({url: signer, json: true, headers: withUserAgent()}, function (err, response, body) {
     if (err) { return def.reject(err) }
     if (!body) { return def.reject('Empty Signature') }
+    // Guard against a non-JSON response (a challenge/error page). Without this
+    // the failure surfaces later as a generic "invalid token" with no clue that
+    // the key fetch is what broke.
+    if (typeof body !== 'object' || !body.pubkey) {
+      return def.reject('Signer did not return JSON (blocked or challenged?): ' +
+        String(body).slice(0, 80))
+    }
     // console.log("body: ", body);
     // console.log("Signature: ", body.pubkey);
     ssCache[signer] = body.pubkey
@@ -50,7 +61,9 @@ var validateToken = function (token,signingSubject) {
     // console.log("validation success: ", success);
     return success
   }, function (err) {
-    console.log('Error retrieving SigningSubject: ', parsedToken.SigningSubject)
+    // Log the reason, not just the URL: a key-fetch failure rejects every token
+    // and otherwise looks identical to a genuinely bad signature.
+    console.log('Error retrieving SigningSubject: ', parsedToken.SigningSubject, err)
     return false
   })
 }
