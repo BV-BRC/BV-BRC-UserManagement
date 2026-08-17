@@ -71,6 +71,29 @@ openssl rsa -in private.pem -pubout -out public.pem
 - User lookups support both username and email via `or(eq(id,...),eq(email,...))` queries
 - Realm mapping (`realm_map` config) maps sources to token realms (e.g., "bvbrc" -> "bvbrc")
 
+### Outbound User-Agent
+
+**Every outbound HTTP request must send a `User-Agent`.** Use the shared helper in `userAgent.js`:
+
+```js
+var withUserAgent = require('./userAgent').withUserAgent
+request.get({url: url, json: true, headers: withUserAgent(opts.headers)}, cb)
+```
+
+- Produces `bvbrc-user/<version>`; version from `BVBRC_USER_VERSION` env var, else `package.json`.
+- **The `bvbrc-<component>/<version>` shape is allowlisted in the BV-BRC Cloudflare rules.** Keep the prefix.
+- Unlike p3_api's equivalent helper, this one does *not* shell out to `git describe` — this module is consumed as an npm dependency, where that would report the host repo's version.
+
+Why it matters: Cloudflare fronts the BV-BRC hosts and answers clients it doesn't recognize with a 403 challenge page. The `request` library sends no UA by default, so `validateToken.js`'s fetch of `/public_key` got HTML instead of JSON, `getSigner` rejected, and **every token was refused** — callers silently fell through to anonymous and just got less data, with no error. This was patched downstream in `p3_api/node_modules/p3-user/` for months, where `npm install` kept wiping it.
+
+Diagnose with a **Node** request, not curl — curl's default UA passes:
+
+```bash
+node -e "require('https').get('https://user.patricbrc.org/public_key', r => console.log(r.statusCode))"   # 403 => blocked
+```
+
+`getSigner` also rejects any non-JSON signer response, so a challenge page surfaces as a specific error rather than a generic "invalid token".
+
 ## Security Considerations
 
 ### RQL Injection Prevention
