@@ -5,7 +5,6 @@ var email = require('nodemailer')
 var bcrypt = require('bcrypt')
 var crypto = require("crypto");
 var randomstring = require('randomstring')
-var smtpTransport = require('nodemailer-smtp-transport')
 var ModelBase = require('./base')
 var errors = require('dactic/errors')
 var util = require('util')
@@ -198,30 +197,24 @@ Model.prototype.mail = function (userId, message, subject, options) {
   } else {
     u = this.get(userId)
   }
-  var transport
   // var _self = this
   return When(u, function (gres) {
     var user = gres.getData()
     // console.log("user: ", user);
     // console.log('Sending mail to : ', user.email)
     var mailconf = config.get('email')
+    var transport
 
     if (mailconf.localSendmail) {
-      transport = email.createTransport()
+      // nodemailer >= 2 dropped the no-argument createTransport() that meant
+      // "pipe to the local sendmail"; it must be requested explicitly now.
+      transport = email.createTransport({ sendmail: true })
     } else {
-      email.SMTP = {
-        host: mailconf.host || 'localhost',
-        port: mailconf.port || 25
-      }
-    }
-
-    if (mailconf.username) {
-      email.SMTP.use_authentication = true
-      email.SMTP.user = mailconf.username
-      email.SMTP.pass = mailconf.password
-    }
-
-    if (!transport) {
+      // The old `email.SMTP = {...}` assignment here was nodemailer 0.x API and
+      // had no effect on any version this service has shipped with -- the
+      // transport below is what actually carried the host/port/auth. It also
+      // threw a TypeError whenever localSendmail was set together with a
+      // username, since email.SMTP was then never assigned.
       var transportOpts = {
         host: mailconf.host || 'localhost',
         port: mailconf.port || 25,
@@ -233,7 +226,9 @@ Model.prototype.mail = function (userId, message, subject, options) {
           pass: mailconf.password
         }
       }
-      transport = email.createTransport(smtpTransport(transportOpts))
+      // nodemailer >= 2 accepts the SMTP options object directly, so the
+      // separate nodemailer-smtp-transport shim is no longer needed.
+      transport = email.createTransport(transportOpts)
     }
 
     var mailmsg = {
