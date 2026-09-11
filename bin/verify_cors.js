@@ -117,14 +117,30 @@ async function main () {
   check('arbitrary header not reflected',
     h['access-control-allow-headers'].indexOf('x-totally-made-up'), -1)
 
-  h = await request(port, 'OPTIONS', ALLOWED, 'accept,content-type,authorization')
+  h = await request(port, 'OPTIONS', ALLOWED, 'accept,content-type,authorization,x-requested-with')
   // Tightening from reflection to a fixed list can only break clients by
-  // omission. These three are everything the p3 client sends cross-origin
-  // (X-Requested-With is always null and dojo/request strips it).
+  // omission, so every header the client can send is asserted explicitly.
+  //
+  // x-requested-with is the one that actually bit: dojo/request/xhr.js:278
+  // sends it by DEFAULT unless a call site passes the key with a falsy value.
+  // An earlier version of this file asserted the opposite -- that dojo always
+  // strips it -- because the three UserProfileForm sites do null it out. But
+  // LoginForm.js:99 (POST /authenticate) passes no headers object at all, so
+  // it sends the default, and omitting the header here broke production login.
   const allowHdrs = h['access-control-allow-headers'].toLowerCase()
-  ;['accept', 'content-type', 'authorization'].forEach((n) => {
+  ;['accept', 'content-type', 'authorization', 'x-requested-with'].forEach((n) => {
     check('client header allowed: ' + n, allowHdrs.indexOf(n) !== -1, true)
   })
+
+  // The dojo default reproduced end to end: a preflight carrying exactly what
+  // LoginForm.js:99 sends must be allowed.
+  h = await request(port, 'OPTIONS', ALLOWED, 'x-requested-with,content-type')
+  const loginAllowed = h['access-control-allow-headers'].toLowerCase()
+    .split(',').map(function (s) { return s.trim() })
+  check('LoginForm.js:99 preflight passes',
+    ['x-requested-with', 'content-type'].every(function (n) {
+      return loginAllowed.indexOf(n) !== -1
+    }), true)
 
   h = await request(port, 'GET', null)
   check('same-origin: no ACAO', h['access-control-allow-origin'], undefined)

@@ -60,10 +60,34 @@
  */
 
 /*
- * Unchanged from the previous configuration. p3_user reads no other request
- * header: the only one middleware/token.js touches is authorization.
+ * The first three are unchanged from the previous configuration; p3_user reads
+ * no other request header, since the only one middleware/token.js touches is
+ * authorization.
+ *
+ * x-requested-with is NOT optional, even though no server code reads it.
+ * dojo/request/xhr.js:278 sends it by DEFAULT:
+ *
+ *     if(!headers || !('X-Requested-With' in headers)){
+ *       _xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+ *     }
+ *
+ * It is suppressed only where a call site explicitly passes the key with a
+ * falsy value (`'X-Requested-With': null`), which UserProfileForm.js does at
+ * :86, :143 and :370 -- but LoginForm.js:99 (POST /authenticate) passes no
+ * headers object at all and therefore sends it.
+ *
+ * Under the old `allowHeaders` typo cors reflected Access-Control-Request-
+ * Headers, so this was allowed by accident. Omitting it from the fixed list
+ * breaks login with:
+ *
+ *   Request header field X-Requested-With is not allowed by
+ *   Access-Control-Allow-Headers
+ *
+ * Do not remove it on the grounds that nothing reads it server-side. The
+ * question for this list is what the CLIENT SENDS, not what the server
+ * consumes -- a header omitted here fails preflight before any handler runs.
  */
-var ALLOWED_HEADERS = ['accept', 'content-type', 'authorization']
+var ALLOWED_HEADERS = ['accept', 'content-type', 'authorization', 'x-requested-with']
 
 var EXPOSED_HEADERS = ['Content-Range', 'X-Content-Range', 'Content-type']
 
