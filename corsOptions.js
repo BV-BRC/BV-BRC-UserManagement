@@ -87,26 +87,53 @@
  * question for this list is what the CLIENT SENDS, not what the server
  * consumes -- a header omitted here fails preflight before any handler runs.
  *
- * `range` is here for the same reason, and is the second header this list was
- * found to be missing. p3_user implements no Range semantics at all, but
- * dojo/store/JsonRest sets the header itself whenever a query carries
- * start/count -- dojo/store/JsonRest.js:191-200:
+ * `range` and `x-range` are here for the same reason. p3_user implements no
+ * Range semantics at all, but dojo/store/JsonRest sets both headers itself
+ * whenever a query carries start/count -- dojo/store/JsonRest.js:191-200:
  *
  *     if(options.start >= 0 || options.count >= 0){
  *       headers["X-Range"] = "items=" + ...
  *       if(this.rangeParam){ ... } else { headers.Range = headers["X-Range"] }
  *     }
  *
+ * Note X-Range is set UNCONDITIONALLY on that branch, while Range is set only
+ * when rangeParam is falsy. The class doc says so explicitly at :48-50 --
+ * "Independent of this, the X-Range header is always set." #48 allowed `range`
+ * alone and fixed nothing, because both headers go out together and the
+ * preflight fails on whichever is missing. Do not remove either.
+ *
  * The workspace sharing dialog hits this: PermissionEditor.js:153 constructs a
  * UserSelector, whose store targets `<accountURL>/user/` -- this service,
  * cross-origin -- and whose _AutoCompleterMixin paginates, so every user
- * lookup preflights with `Range`. Symptom is a CORS failure on the search box,
- * not a 416 or a bad page of results, because the request never reaches us.
+ * lookup preflights with both headers. Symptom is a CORS failure on the search
+ * box, not a 416 or a bad page of results, because the request never reaches
+ * us. It surfaces downstream as `undefined is not an object (evaluating
+ * 'a.total')`, because JsonRest's QueryResults.total never resolves.
  *
- * p3_api's equivalent list already carries 'range' (p3_api/util/corsOptions.js);
- * p3_user was simply missed when that list was written.
+ * `if-match` / `if-none-match` are sent by JsonRest.put() when a call passes
+ * options.overwrite (dojo/store/JsonRest.js:135-136). Nothing writes to this
+ * service through a store today, but the cost of listing them is zero and the
+ * failure mode if one ever does is another silent preflight rejection.
+ *
+ * This list is intentionally the same set p3_api allows
+ * (p3_api/util/corsOptions.js), plus if-match. The two services are called by
+ * the same dojo client, so a header one needs the other generally needs too.
+ * p3_user was missed when that list was written and has now been patched
+ * THREE times -- x-requested-with (#46), range (#48), x-range (this) -- each
+ * time for a header p3_api already allowed, each found only by a user hitting
+ * a broken feature. Diff the two lists when either changes; do not add
+ * headers one at a time as reports come in.
  */
-var ALLOWED_HEADERS = ['accept', 'content-type', 'authorization', 'x-requested-with', 'range']
+var ALLOWED_HEADERS = [
+  'accept',
+  'authorization',
+  'content-type',
+  'if-match',
+  'if-none-match',
+  'range',
+  'x-range',
+  'x-requested-with'
+]
 
 var EXPOSED_HEADERS = ['Content-Range', 'X-Content-Range', 'Content-type']
 
