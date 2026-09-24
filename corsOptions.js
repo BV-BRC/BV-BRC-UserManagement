@@ -86,8 +86,27 @@
  * Do not remove it on the grounds that nothing reads it server-side. The
  * question for this list is what the CLIENT SENDS, not what the server
  * consumes -- a header omitted here fails preflight before any handler runs.
+ *
+ * `range` is here for the same reason, and is the second header this list was
+ * found to be missing. p3_user implements no Range semantics at all, but
+ * dojo/store/JsonRest sets the header itself whenever a query carries
+ * start/count -- dojo/store/JsonRest.js:191-200:
+ *
+ *     if(options.start >= 0 || options.count >= 0){
+ *       headers["X-Range"] = "items=" + ...
+ *       if(this.rangeParam){ ... } else { headers.Range = headers["X-Range"] }
+ *     }
+ *
+ * The workspace sharing dialog hits this: PermissionEditor.js:153 constructs a
+ * UserSelector, whose store targets `<accountURL>/user/` -- this service,
+ * cross-origin -- and whose _AutoCompleterMixin paginates, so every user
+ * lookup preflights with `Range`. Symptom is a CORS failure on the search box,
+ * not a 416 or a bad page of results, because the request never reaches us.
+ *
+ * p3_api's equivalent list already carries 'range' (p3_api/util/corsOptions.js);
+ * p3_user was simply missed when that list was written.
  */
-var ALLOWED_HEADERS = ['accept', 'content-type', 'authorization', 'x-requested-with']
+var ALLOWED_HEADERS = ['accept', 'content-type', 'authorization', 'x-requested-with', 'range']
 
 var EXPOSED_HEADERS = ['Content-Range', 'X-Content-Range', 'Content-type']
 
