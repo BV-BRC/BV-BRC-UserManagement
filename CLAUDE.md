@@ -54,6 +54,7 @@ openssl rsa -in private.pem -pubout -out public.pem
 - **app.js** - Express application entry point, middleware setup, route registration, graceful shutdown with request draining
 - **dataModel.js** - Initializes dactic data models with MongoDB stores and facets (public/user/admin privilege levels)
 - **config.js** - Configuration management via nconf
+- **corsOptions.js** - CORS policy: reflected origin, credentials gated on the `cors_origins` allowlist. See "CORS" below before editing.
 
 ### Authentication Flow
 
@@ -103,7 +104,7 @@ https.get({hostname: h, path: p, headers: withUserAgent({Accept: 'application/js
 - **The `bvbrc-<component>/<version>` shape is allowlisted in the BV-BRC Cloudflare rules.** Keep the prefix.
 - Unlike p3_api's equivalent helper, this one does *not* shell out to `git describe` — this module is consumed as an npm dependency, where that would report the host repo's version.
 
-Why it matters: Cloudflare fronts the BV-BRC hosts and answers clients it doesn't recognize with a 403 challenge page. The `request` library (since removed) sent no UA by default, so `validateToken.js`'s fetch of `/public_key` got HTML instead of JSON, `getSigner` rejected, and **every token was refused** — callers silently fell through to anonymous and just got less data, with no error. This was patched downstream in `p3_api/node_modules/p3-user/` for months, where `npm install` kept wiping it.
+Why it matters: Cloudflare fronts the BV-BRC hosts and answers clients it doesn't recognize with a 403 challenge page. The `request` library (since removed) sent no UA by default, so `validateToken.js`'s fetch of `/public_key` got HTML instead of JSON, `getSigner` rejected, and **every token was refused** — callers silently fell through to anonymous and just got less data, with no error. This was patched downstream in `p3_api/node_modules/p3-user/` for months, where `npm install` kept wiping it. That patch is now obsolete: p3_api pins this repo as a dependency and the fix is upstream here, so **do not re-apply it** to `node_modules`.
 
 Note the challenge is currently **path-scoped, not UA-scoped**: measured against production, `/` challenges every UA including none, while `/public_key` is exempt for all of them. The UA is still required — that exemption is a Cloudflare config someone can change — but do not assume the allowlist is what keeps token validation working today.
 
@@ -116,6 +117,86 @@ node -e "require('https').get('https://user.patricbrc.org/public_key', r => cons
 `getSigner` also rejects any non-JSON signer response, so a challenge page surfaces as a specific error rather than a generic "invalid token".
 
 `validateToken.js` uses node's built-in `http`/`https`, not the `request` package. `request` is deprecated and unmaintained, and was this module's largest source of npm audit advisories. **Do not add it back.** `dactic` still declares it as a dependency (and so still pulls it into the tree) but never actually requires it — a phantom dependency worth removing if `dactic` is ever forked or updated.
+
+## CORS
+
+`corsOptions.js`. p3_user is reached **cross-origin** by the website (`bv-brc.org` →
+`user.patricbrc.org`, different registrable domains) for login, token refresh, SU
+login, registration, password reset and profile reads. The origin is therefore
+*reflected*, and only **credentials** are gated on the `cors_origins` allowlist —
+the same split p3_api uses. Gating the origin itself would break login for any
+property not listed, and that does not show up until deploy.
+
+### Adding a header: diff against p3_api first
+
+`ALLOWED_HEADERS` has been patched **three times in a row**, each time for a header
+`p3_api/util/corsOptions.js` already allowed, each found by a user hitting a broken
+feature rather than by comparing the two files:
+
+| PR | header | in p3_api already? |
+|---|---|---|
+| #46 | `x-requested-with` | yes |
+| #48 | `range` | yes |
+| #49 | `x-range` | yes |
+
+**When either list changes, diff both.** They are called by the same dojo client, so
+a header one needs the other generally needs too:
+
+```bash
+node -e "
+const a=require('./corsOptions.js').ALLOWED_HEADERS.map(s=>s.toLowerCase()).sort()
+const b=require('../p3_api/util/corsOptions.js').ALLOWED_HEADERS.map(s=>s.toLowerCase()).sort()
+console.log('only p3_user:', a.filter(h=>!b.includes(h)))
+console.log('only p3_api :', b.filter(h=>!a.includes(h)))"
+```
+
+### Why headers go missing
+
+The original config misspelled `allowHeaders` (cors reads `allowedHeaders`), so cors
+fell through to **reflecting** `Access-Control-Request-Headers` — permitting whatever
+the browser asked for. Correcting the spelling replaced that with an explicit list,
+so every header the client sends but the list omits now fails preflight *before any
+handler runs*.
+
+The question for this list is **what the client sends**, not what the server reads.
+p3_user implements no Range semantics and reads no `x-requested-with`, yet all three
+headers above are required — dojo sends them on its own:
+
+- `x-requested-with` — `dojo/request/xhr.js:278` sets it by default unless a call
+  site passes the key with a falsy value.
+- `range` **and** `x-range` — `dojo/store/JsonRest.js:191-200` sets both when a query
+  carries `start`/`count`. `X-Range` is set **unconditionally**; `Range` only when
+  `rangeParam` is falsy. They travel together, so allowing one without the other
+  fixes nothing — that was #48.
+- `if-match` / `if-none-match` — `JsonRest.put()` when a call passes
+  `options.overwrite`. Nothing sends these today; they are listed as insurance.
+
+### Symptoms
+
+A blocked preflight is not an HTTP error you will find in the service log — the
+request never arrives. It shows up in the browser as
+`Request header field X is not allowed by Access-Control-Allow-Headers`, and often
+as a *downstream* JS error: the workspace sharing dialog reported
+`undefined is not an object (evaluating 'a.total')`, because JsonRest's
+`QueryResults.total` never resolves. Don't chase the second error.
+
+`Content-Range`/`X-Content-Range` are in `EXPOSED_HEADERS` and dactic sets
+`Content-Range` (`dactic/datamodel.js:154`), so the total resolves once the request
+is unblocked.
+
+### Reproducing
+
+Preflight against a running app.js — no browser needed:
+
+```bash
+curl -sD- -o/dev/null -X OPTIONS 'http://127.0.0.1:13099/user/' \
+  -H 'Origin: https://www.bv-brc.org' \
+  -H 'Access-Control-Request-Method: GET' \
+  -H 'Access-Control-Request-Headers: range,x-range' | grep -i access-control
+```
+
+A 204 does **not** mean success — check that every requested header appears in
+`Access-Control-Allow-Headers`. That is exactly what #48 got wrong.
 
 ## Security Considerations
 
