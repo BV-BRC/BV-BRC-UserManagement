@@ -104,6 +104,20 @@ openssl genrsa -out private.pem 2056
 openssl rsa -in private.pem -pubout -out public.pem
 ```
 
+### nconf splits every key on `:` — never key a config object by URL
+
+`{'https://www.bv-brc.org': 'bvbrc'}` is silently rewritten to
+`{https: {'//www.bv-brc.org': 'bvbrc'}}`, so every lookup misses. This happens
+in `defaults` in `config.js`, in `p3-user.conf`, and via `.set()` alike —
+**arrays are the only shape that survives all three**. That is why
+`registration_site_map` is a list of `{url, site}` rather than the map it
+obviously wants to be.
+
+The failure is quiet: nothing errors, the source still looks right, and every
+origin just resolves to `unknown`. Pinned in
+`test/unit/registration-site.test.js` both as the nconf behavior itself and as
+an assertion that the *shipped* config resolves the real production origins.
+
 ## Architecture
 
 ### Core Components
@@ -147,6 +161,42 @@ the subject match and signature verification.
 - Passwords stored as bcrypt hashes; legacy SHA1 passwords auto-migrated on successful login
 - User lookups support both username and email via `or(eq(id,...),eq(email,...))` queries
 - Realm mapping (`realm_map` config) maps sources to token realms (e.g., "bvbrc" -> "bvbrc")
+
+### Registration provenance: `registration_site`, not `source`
+
+Which frontend property an account was created from (BV-BRC, MAAGE, DXKB,
+LDKB) is recorded in two fields on the user record: `registration_site` (the
+slug) and `registration_site_url` (the normalized origin it was derived
+from). The client declares it by passing `registration_site_url` —
+`window.App.appBaseURL` — to `POST /register`. It is optional, so existing
+clients keep working; frontends sending it are a follow-up PR per repo.
+
+**`source` looks like the field for this and is not — it is auth-bearing.**
+`generateToken.js:40` derives the token realm from `realm_map[user.source]`,
+so writing `maage` there mints `un=alice@undefined` tokens that then fail
+their own realm check in `middleware/token.js:9-11`. The separation is
+deliberate; keep provenance out of anything in the auth path.
+
+Three rules the implementation rests on, each with a test:
+
+- **The slug is derived, never copied.** Only `registration_site_url` is in
+  the `cpProps` allowlist; `registerUser` resolves the slug from it. A client
+  that sends its own `registration_site` is ignored — otherwise anyone could
+  self-attribute to any property.
+- **No `enum` on the schema properties.** `Model.patch` does get → apply →
+  `put`, and `put` runs AJV over the *whole* document, so a record holding a
+  value later dropped from the enum would fail validation on every subsequent
+  write — no password reset, no verification, no profile edit. Retiring a
+  site would silently brick those accounts. The allowed set lives in config
+  and is enforced at registration only.
+- **An unmapped-but-well-formed origin is `unknown`, not an error.** A
+  property launching before this service's map is updated must still be able
+  to register users; the stored URL lets slugs be backfilled. Only a
+  *malformed* value (unparseable, or non-`http(s)`) is a 400.
+
+Omission is handled by `delete`, not by leaving `undefined` — see the
+optional-field trap above; `undefined` would become BSON `null` and break the
+next write.
 
 ### Outbound User-Agent
 
