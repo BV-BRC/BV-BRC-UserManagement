@@ -1,11 +1,9 @@
 /*
- * PENDING -- the registration_site feature is not implemented yet.
+ * The registration_site feature, per PLAN-registration-site.md.
  *
- * These are marked `todo`, so they run and report but do not fail the suite.
- * They encode the design in PLAN-registration-site.md as executable
- * expectations: implement the plan and they turn green without being edited.
- * If one still fails after implementation, the implementation and the plan
- * have diverged.
+ * These were written first, as `todo`, and turned green by the
+ * implementation without being edited -- so they are the design as specified,
+ * not a description of whatever the code happens to do.
  *
  * Deliberately written against the *behavior* (a URL in, a slug stored) rather
  * than against a particular helper signature, except where the plan names one.
@@ -20,14 +18,22 @@ var utils = require('../../utils')
 var buildModel = require('../helpers/model')
 var fixture = buildModel.userFixture
 
-var SITE_MAP = {
-  'https://www.bv-brc.org': 'bvbrc',
-  'https://bv-brc.org': 'bvbrc',
-  'https://www.patricbrc.org': 'bvbrc',
-  'https://www.maage-brc.org': 'maage',
-  'https://dxkb.org': 'dxkb',
-  'https://ldkb.org': 'ldkb'
-}
+/*
+ * A list, matching config.js. It reads like it wants to be an object keyed
+ * by origin, and it cannot be: nconf splits every key on `:`, so
+ * {'https://x.org': 'slug'} becomes {https: {'//x.org': 'slug'}} and every
+ * lookup misses. Using the real config shape here is the point -- an
+ * object-shaped fixture would pass while production silently resolved
+ * everything to 'unknown'.
+ */
+var SITE_MAP = [
+  { url: 'https://www.bv-brc.org', site: 'bvbrc' },
+  { url: 'https://bv-brc.org', site: 'bvbrc' },
+  { url: 'https://www.patricbrc.org', site: 'bvbrc' },
+  { url: 'https://www.maage-brc.org', site: 'maage' },
+  { url: 'https://dxkb.org', site: 'dxkb' },
+  { url: 'https://ldkb.org', site: 'ldkb' }
+]
 
 function withSiteMap () {
   return buildModel({
@@ -40,7 +46,7 @@ function withSiteMap () {
 
 /* ---- the URL normalizer, in isolation ---- */
 
-test('normalizes URL variance to a bare origin', { todo: true }, function () {
+test('normalizes URL variance to a bare origin', function () {
   /*
    * The frontends pass appBaseURL verbatim, and it is not guaranteed to be a
    * bare origin -- trailing slash, path, query and case all vary by
@@ -59,7 +65,7 @@ test('normalizes URL variance to a bare origin', { todo: true }, function () {
   })
 })
 
-test('rejects malformed and non-http(s) URLs rather than coercing them', { todo: true }, function () {
+test('rejects malformed and non-http(s) URLs rather than coercing them', function () {
   /*
    * javascript: is the one that matters -- the value is stored and may later
    * be rendered in an admin view, so a scheme that can execute must never be
@@ -74,7 +80,7 @@ test('rejects malformed and non-http(s) URLs rather than coercing them', { todo:
   })
 })
 
-test('rejects an over-long URL before parsing it', { todo: true }, function () {
+test('rejects an over-long URL before parsing it', function () {
   // Bounded before new URL() sees it -- the stored value ends up in a user
   // document, and there is no legitimate 2KB base URL.
   assert.strictEqual(utils.normalizeSiteUrl('https://x.org/' + 'a'.repeat(3000)), null)
@@ -82,14 +88,44 @@ test('rejects an over-long URL before parsing it', { todo: true }, function () {
 
 /* ---- origin -> slug resolution ---- */
 
-test('maps a known origin to its slug', { todo: true }, function () {
+test('maps a known origin to its slug', function () {
   assert.strictEqual(utils.resolveSiteSlug('https://www.maage-brc.org', SITE_MAP), 'maage')
   assert.strictEqual(utils.resolveSiteSlug('https://dxkb.org', SITE_MAP), 'dxkb')
   assert.strictEqual(utils.resolveSiteSlug('https://ldkb.org', SITE_MAP), 'ldkb')
   assert.strictEqual(utils.resolveSiteSlug('https://www.patricbrc.org', SITE_MAP), 'bvbrc')
 })
 
-test('an unmapped but well-formed origin resolves to "unknown", not an error', { todo: true }, function () {
+test('nconf cannot hold a map keyed by URL -- the config must be a list', function () {
+  /*
+   * Why registration_site_map is a list of {url, site} rather than the
+   * obvious object. nconf treats `:` as a key-path separator, so a URL key
+   * is silently split apart. This fails quietly -- every lookup misses,
+   * every registration records 'unknown', nothing errors -- so pin it here
+   * rather than rediscovering it.
+   */
+  var nconf = require('nconf')
+  var probe = new nconf.Provider()
+  probe.defaults({ shredded: { 'https://www.bv-brc.org': 'bvbrc' } })
+  assert.deepStrictEqual(probe.get('shredded'), { https: { '//www.bv-brc.org': 'bvbrc' } },
+    'if this ever stops being true, the list shape is no longer required')
+
+  probe.defaults({ intact: [{ url: 'https://www.bv-brc.org', site: 'bvbrc' }] })
+  assert.deepStrictEqual(probe.get('intact'), [{ url: 'https://www.bv-brc.org', site: 'bvbrc' }])
+})
+
+test('the shipped config map resolves the real production origins', function () {
+  // Guards the config itself, not just the helper: a map that nconf has
+  // shredded still *looks* fine in source.
+  var config = require('../../config')
+  var shipped = config.get('registration_site_map')
+  assert.ok(Array.isArray(shipped), 'must survive nconf as a list')
+  assert.strictEqual(utils.resolveSiteSlug('https://www.bv-brc.org', shipped), 'bvbrc')
+  assert.strictEqual(utils.resolveSiteSlug('https://www.maage-brc.org', shipped), 'maage')
+  assert.strictEqual(utils.resolveSiteSlug('https://dxkb.org', shipped), 'dxkb')
+  assert.strictEqual(utils.resolveSiteSlug('https://ldkb.org', shipped), 'ldkb')
+})
+
+test('an unmapped but well-formed origin resolves to "unknown", not an error', function () {
   /*
    * The deployment-coupling guard. A property that launches before p3_user's
    * map is updated must still be able to register users; the stored URL lets
@@ -102,7 +138,7 @@ test('an unmapped but well-formed origin resolves to "unknown", not an error', {
 
 /* ---- registerUser end to end ---- */
 
-test('registration stores both the slug and the normalized URL', { todo: true }, function (t, done) {
+test('registration stores both the slug and the normalized URL', function (t, done) {
   var h = withSiteMap()
   when(h.model.registerUser(fixture({
     username: 'alice',
@@ -117,7 +153,7 @@ test('registration stores both the slug and the normalized URL', { todo: true },
   }, done)
 })
 
-test('an omitted parameter falls back to the default slug and stores no URL', { todo: true }, function (t, done) {
+test('an omitted parameter falls back to the default slug and stores no URL', function (t, done) {
   // An old client that has not been updated. Absence is not an assertion
   // about origin, so no URL may be invented for it.
   var h = withSiteMap()
@@ -129,7 +165,7 @@ test('an omitted parameter falls back to the default slug and stores no URL', { 
   }, done)
 })
 
-test('an unmapped origin still creates the account', { todo: true }, function (t, done) {
+test('an unmapped origin still creates the account', function (t, done) {
   // The whole point of the "unknown" slug: assert the account EXISTS, not
   // merely that the call did not reject.
   var h = withSiteMap()
@@ -146,7 +182,7 @@ test('an unmapped origin still creates the account', { todo: true }, function (t
   }, done)
 })
 
-test('a malformed URL is a 400 and creates no user', { todo: true }, function (t, done) {
+test('a malformed URL is a 400 and creates no user', function (t, done) {
   var h = withSiteMap()
   when(h.model.registerUser(fixture({
     username: 'alice',
@@ -164,7 +200,7 @@ test('a malformed URL is a 400 and creates no user', { todo: true }, function (t
 
 /* ---- the field must not be client-controllable beyond the URL ---- */
 
-test('a client cannot set the slug directly', { todo: true }, function (t, done) {
+test('a client cannot set the slug directly', function (t, done) {
   /*
    * registration_site is derived, never copied from input. If it were added
    * to cpProps alongside the URL, any client could claim any site and the
@@ -183,7 +219,7 @@ test('a client cannot set the slug directly', { todo: true }, function (t, done)
   }, done)
 })
 
-test('registration_site does not touch source, so the token realm is unchanged', { todo: true }, function (t, done) {
+test('registration_site does not touch source, so the token realm is unchanged', function (t, done) {
   // The separation the whole design rests on -- see token-realm.test.js for
   // what reusing `source` would have done.
   var h = withSiteMap()
@@ -251,7 +287,7 @@ test('a user holding a retired slug can still be written', function (t, done) {
   var h = buildModel({
     config: {
       // dxkb deliberately absent
-      registration_site_map: { 'https://www.bv-brc.org': 'bvbrc' },
+      registration_site_map: [{ url: 'https://www.bv-brc.org', site: 'bvbrc' }],
       default_registration_site: 'bvbrc'
     }
   })

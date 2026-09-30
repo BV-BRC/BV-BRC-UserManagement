@@ -77,7 +77,7 @@ testing the driver's integer handling rather than p3_user.
 | `unit/facet-fields.test.js` | facet whitelists are default-deny, so new fields are immutable for free; third-party reads leak nothing |
 | `unit/rql-injection.test.js` | `utils.isValidCode()` rejects `re:.*` and friends before any interpolation |
 | `unit/register.test.js` | registration: the allowlist, duplicate handling, bcrypt storage, legacy SHA1 migration |
-| `unit/registration-site.test.js` | **mostly `todo`** — executable spec for the unimplemented `registration_site` field |
+| `unit/registration-site.test.js` | the `registration_site` field: URL normalization, origin→slug resolution, the derive-never-copy rule, and that nconf cannot hold a URL-keyed map |
 | `integration/store.test.js` | the `overwrite:false` refusal, `_id` stripping, real mongo RQL semantics, and BSON's `undefined`→`null` coercion — plus the registration defect that coercion causes |
 
 ## What the first real-mongod run found
@@ -127,11 +127,27 @@ unmaintained; `unit/dactic-contract.test.js` is what tells you what silently
 changed if it is ever forked or upgraded.
 
 **Pending tests are `todo`, not commented out.** `unit/registration-site.test.js`
-encodes `PLAN-registration-site.md` as assertions that run and report but do
-not fail the build. Implement the plan and they turn green unedited; if one
-still fails, the implementation and the plan have diverged. Two tests in that
-file are deliberately *not* `todo` — they pass today and guard the default-deny
-and no-enum properties the plan relies on.
+was written this way first: it encoded `PLAN-registration-site.md` as assertions
+that ran and reported without failing the build, and the implementation turned
+them green without editing any of them. That is the value of the pattern — the
+tests are the spec as agreed, not a description of whatever the code ended up
+doing. Use it for the next planned change.
+
+**Build a model with `mongo.model()`, not `new UserModel(store, {})`.**
+`new Model(...)` calls `store.setSchema()` (dactic/model.js:35-36), which in
+dactic-store-mongodb is asynchronous and whose promise nobody awaits
+(index.js:76-133) — `collection()` → `col.stats()` → `createCollection()` when
+the collection does not exist. A test that never writes therefore still has a
+`createCollection` in flight when teardown drops the database: the drop
+succeeds, the collection is recreated a millisecond later on the other
+connection, and an empty scratch database is left behind on every run. The
+mongod log shows it plainly — `dropDatabase` on conn N, `create collection` on
+conn N-1. Tests that write win the race by accident; don't rely on it.
+
+**Prefer `find().limit(n).toArray()` over `countDocuments()`.** On driver 3.5
+against a 3.4 server `countDocuments()` issues `collStats` + `aggregate`, and
+`collStats` against a missing collection creates it — the same leak, from the
+assertion side rather than the constructor.
 
 **The in-memory store returns promises**, as `dactic-store-mongodb` does.
 This is not cosmetic: promised-io's `when()` runs its callback inline on a

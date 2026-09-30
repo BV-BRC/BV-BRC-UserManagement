@@ -176,10 +176,38 @@ function captureError (fn) {
   })
 }
 
+/*
+ * Builds a model on a connected store and waits for its schema setup to
+ * finish.
+ *
+ * `new Model(store, ...)` calls store.setSchema() (dactic/model.js:35-36),
+ * which in dactic-store-mongodb is ASYNCHRONOUS and whose promise nobody
+ * awaits (index.js:76-133): it does collection() -> col.stats() ->
+ * createCollection() if the collection does not exist yet. The constructor
+ * returns long before that lands.
+ *
+ * For a test whose body never writes -- one asserting a registration was
+ * REFUSED, say -- the collection genuinely does not exist, so createCollection
+ * is still in flight when teardown drops the database. The drop succeeds and
+ * the collection is then recreated on the other connection a millisecond
+ * later, leaving an empty scratch database behind on every run. Observed in
+ * the mongod log: `dropDatabase` on conn N, then `create collection` on
+ * conn N-1.
+ *
+ * Awaiting the returned promise closes that window. Tests that write happen
+ * to win the race by accident; do not rely on it.
+ */
+function model (Model, h, opts) {
+  var m = new Model(h.store, opts || {})
+  m.mail = function () { return true }
+  return Promise.resolve(h.store.setSchema(m.schema)).then(function () { return m })
+}
+
 module.exports = {
   URL: URL,
   skipReason: skipReason,
   connect: connect,
   available: available,
-  captureError: captureError
+  captureError: captureError,
+  model: model
 }

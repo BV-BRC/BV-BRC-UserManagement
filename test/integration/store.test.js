@@ -365,6 +365,103 @@ test('mongo integration', { skip: unavailable }, async function (t) {
     }
   })
 
+  await t.test('an omitted registration_site_url leaves the key absent, not null', async function () {
+    /*
+     * The one thing about registration_site that only a real mongod can
+     * prove. registration_site_url is in cpProps, so an omitted parameter
+     * is copied as `undefined` -- and BSON turns undefined into NULL, which
+     * the schema's type:'string' then rejects on every subsequent write.
+     * That is the live defect this file already pins for
+     * affiliation/organisms/interests; registerUser deletes the key to stay
+     * out of it.
+     *
+     * memstore clones through JSON and would drop the key either way, so
+     * this test cannot live in the unit layer. Assert on the *stored
+     * document* and on a following write, not on registration succeeding --
+     * the failure is always delayed.
+     */
+    var h = await mongo.connect('user')
+    var model = new UserModel(h.store, {})
+    model.mail = function () { return true }
+    try {
+      await model.registerUser(registration())
+
+      var raw = await h.dbHandle.collection('user').findOne({ id: 'alice' })
+      assert.strictEqual(Object.prototype.hasOwnProperty.call(raw, 'registration_site_url'), false,
+        'the key must be absent, not present-and-null')
+      assert.strictEqual(raw.registration_site, 'bvbrc',
+        'the default slug is still recorded')
+
+      // The delayed half: a null here would fail AJV on this write, not the
+      // one above.
+      await model.setPassword('alice', 'a-brand-new-password')
+      var after = await h.dbHandle.collection('user').findOne({ id: 'alice' })
+      assert.match(after.password, /^\$2[aby]\$/, 'the subsequent write must succeed')
+    } finally {
+      await h.teardown()
+    }
+  })
+
+  await t.test('a declared registration site is stored normalized and derived', async function () {
+    var h = await mongo.connect('user')
+    var model = new UserModel(h.store, {})
+    model.mail = function () { return true }
+    try {
+      await model.registerUser(registration({
+        // A client-supplied slug that disagrees with the URL: the URL wins.
+        registration_site: 'dxkb',
+        registration_site_url: 'HTTPS://WWW.MAAGE-BRC.ORG/register?ref=x'
+      }))
+
+      var raw = await h.dbHandle.collection('user').findOne({ id: 'alice' })
+      assert.strictEqual(raw.registration_site, 'maage',
+        'the slug is derived from the URL, never copied from the client')
+      assert.strictEqual(raw.registration_site_url, 'https://www.maage-brc.org',
+        'the normalized origin is stored, not the raw input')
+      assert.strictEqual(raw.source, 'bvbrc',
+        'the auth-bearing source field is untouched')
+    } finally {
+      await h.teardown()
+    }
+  })
+
+  await t.test('a malformed registration_site_url creates no document', async function () {
+    // Assert absence in the database, not merely that the call rejected --
+    // per CLAUDE.md, every defect here has produced a plausible success.
+    var h = await mongo.connect('user')
+    /*
+     * mongo.model(), not `new UserModel(...)`. This test never writes, so
+     * the collection does not exist and the constructor's async
+     * createCollection is still in flight at teardown -- it recreates the
+     * collection after the drop and leaks an empty scratch database. See
+     * the note on mongo.model().
+     */
+    var model = await mongo.model(UserModel, h)
+    try {
+      var rejected = false
+      try {
+        await model.registerUser(registration({ registration_site_url: 'javascript:alert(1)' }))
+      } catch (err) {
+        rejected = true
+        assert.strictEqual(err.status, 400, 'must be a 400, not a 500')
+      }
+      assert.ok(rejected, 'a malformed URL must be refused')
+
+      /*
+       * find().toArray(), not countDocuments(). On driver 3.5 against a 3.4
+       * server countDocuments() issues collStats + aggregate, and against a
+       * database with no collection yet that RE-CREATES user -- on a second
+       * connection, racing this test's teardown. The drop succeeds and the
+       * collection is recreated a millisecond later, leaving an empty
+       * scratch database behind on every run. A plain find is a pure read.
+       */
+      var survivors = await h.dbHandle.collection('user').find({}).limit(5).toArray()
+      assert.strictEqual(survivors.length, 0, 'no partial account may survive')
+    } finally {
+      await h.teardown()
+    }
+  })
+
   await t.test('a user lookup by email finds the user case-insensitively via l_id', async function () {
     // models/user.js:181 queries id OR lowercased email. Confirms the stored
     // shape actually supports the lookup the service performs on every login.
