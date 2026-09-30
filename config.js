@@ -15,8 +15,53 @@ var defaults = {
   'realm_map': {
     'patricbrc.org': "patricbrc.org",
     "viprbrc": "bvbrc",
-    "bvbrc": "bvbrc" 
+    "bvbrc": "bvbrc"
   },
+
+  /*
+   * Which frontend property a user registered from. `url` is a normalized
+   * origin (what utils.normalizeSiteUrl() produces from a frontend's
+   * appBaseURL); `site` is the slug stored on the user record. Matching is
+   * case-insensitive, so config authors need not be careful about case.
+   *
+   * A LIST, not the object-keyed-by-origin this obviously wants to be:
+   * **nconf splits every key on `:`**, so `{'https://x.org': 'slug'}` is
+   * silently rewritten to `{https: {'//x.org': 'slug'}}` and every lookup
+   * misses. That happens in `defaults` here, in p3-user.conf, and via
+   * `.set()` alike; arrays are the only shape that survives all three. The
+   * failure is quiet -- every origin resolves to 'unknown' and registration
+   * still succeeds -- so do not "clean this up" into a map.
+   *
+   * Deliberately separate from realm_map/default_source. `source` looks like
+   * the field for this and is not -- it is auth-bearing: generateToken.js:40
+   * derives the token realm from realm_map[user.source], so writing 'maage'
+   * there mints un=alice@undefined tokens that fail their own realm check in
+   * middleware/token.js. Provenance must be able to grow without touching
+   * anything in the auth path.
+   *
+   * Same enumeration as cors_origins above -- keep the two in sync.
+   *
+   * Non-production tiers (alpha./beta./dev-N./dev./test.) are deliberately
+   * omitted: they resolve to the slug 'unknown', which is the right default
+   * posture, and deployments add their own. A well-formed origin that is not
+   * listed never blocks registration -- see utils.resolveSiteSlug().
+   */
+  'registration_site_map': [
+    { url: 'https://www.bv-brc.org', site: 'bvbrc' },
+    { url: 'https://bv-brc.org', site: 'bvbrc' },
+    { url: 'https://www.patricbrc.org', site: 'bvbrc' },
+    { url: 'https://www.maage-brc.org', site: 'maage' },
+    { url: 'https://dxkb.org', site: 'dxkb' },
+    { url: 'https://ldkb.org', site: 'ldkb' }
+  ],
+
+  /*
+   * Slug recorded when the caller sends no registration_site_url at all --
+   * an old client, which is every client until the frontend PRs land. This
+   * is an assumption, not an observation, which is why no URL is stored
+   * alongside it.
+   */
+  'default_registration_site': 'bvbrc',
   'email': {
     'localSendmail': false,
     'defaultFrom': 'PATRIC <do-not-reply@patricbrc.org>',

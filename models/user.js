@@ -9,6 +9,7 @@ var ModelBase = require('./base')
 var errors = require('dactic/errors')
 var util = require('util')
 var Result = require('dactic/result')
+var utils = require('../utils')
 
 function resetMessage (resetCode, email) {
   // console.log('Generate Reset Message')
@@ -96,6 +97,30 @@ Model.prototype.schema = {
       type: 'string',
       description: ''
     },
+
+    /*
+     * Which frontend property the account was registered from. Absent on
+     * every record created before this field existed, and that absence is
+     * truthful -- there is no backfill.
+     *
+     * NO `enum` here, deliberately. Model.patch does get -> apply -> put, and
+     * put runs AJV over the entire document (dactic/model.js:233-257), so a
+     * record holding a value later dropped from the enum would fail
+     * validation on every subsequent write: no password reset, no email
+     * verification, no profile edit. Retiring a site would silently brick
+     * those accounts. The allowed set lives in config and is enforced at
+     * registration, where a bad value is rejected before it is ever stored
+     * and can never poison an existing record.
+     */
+    registration_site: {
+      type: 'string',
+      description: 'Slug of the frontend property this account was registered from'
+    },
+    registration_site_url: {
+      type: 'string',
+      description: 'Normalized origin the registration request declared, retained so slugs can be re-derived'
+    },
+
     roles: {
       type: 'array',
       description: '',
@@ -115,11 +140,59 @@ Model.prototype.registerUser = function (user) {
   // var newUser = user // {name: user.name, email: user.email}
 
   var newUser = {}
-  const cpProps=["email","first_name","last_name","affiliation","middle_name","organisms","interests"]
+  /*
+   * registration_site_url is copied; registration_site is NOT. The slug is
+   * derived below from the URL, so a caller that sends its own
+   * registration_site is ignored rather than trusted -- otherwise anyone
+   * could self-attribute to any property.
+   */
+  const cpProps=["email","first_name","last_name","affiliation","middle_name","organisms","interests","registration_site_url"]
   cpProps.forEach((prop)=>{
     newUser[prop]=user[prop]
   })
-  
+
+  /*
+   * Resolve provenance here rather than in post(): post() is the generic
+   * create path (admin user creation, imports), while registration is the
+   * one place a frontend declares where it is. An absent parameter means an
+   * old client, not an assertion about origin, so it gets the default slug
+   * and no stored URL.
+   */
+  var declaredSiteUrl = user.registration_site_url
+  if (declaredSiteUrl === undefined || declaredSiteUrl === null || declaredSiteUrl === '') {
+    newUser.registration_site = config.get('default_registration_site')
+    /*
+     * delete, not leave-as-undefined. The cpProps loop above copies every
+     * listed key unconditionally, so an omitted parameter is sitting there
+     * as `undefined` right now -- and BSON serializes undefined to NULL,
+     * which the schema's type:'string' then rejects on the *next* write to
+     * this record. That is the live registration defect documented in
+     * CLAUDE.md, and it is only invisible in plain JS. Verified against
+     * mongod 3.4.24: with the delete the key is genuinely absent from the
+     * stored document, and subsequent writes succeed.
+     */
+    delete newUser.registration_site_url
+  } else {
+    var origin = utils.normalizeSiteUrl(declaredSiteUrl)
+    if (!origin) {
+      /*
+       * Only *malformed* is an error. No real frontend can produce one, and
+       * silently storing garbage would make the field untrustworthy.
+       *
+       * Rejected, not thrown: registerUser's contract is a promise
+       * (routes/register.js:28 chains .then), and a synchronous throw here
+       * would escape the caller's error handler entirely -- it happens before
+       * the When() below is ever entered.
+       */
+      var badUrl = Defer()
+      badUrl.reject(new errors.BadRequest('Invalid registration site URL'))
+      return badUrl.promise
+    }
+    newUser.registration_site = utils.resolveSiteSlug(origin, config.get('registration_site_map'))
+    newUser.registration_site_url = origin
+  }
+
+
   var username = user.username
   delete user.username
   var pw = user.password
