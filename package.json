@@ -4,7 +4,11 @@
   "private": true,
   "scripts": {
     "start": "node app.js",
-    "build-image": "./buildImage.sh"
+    "build-image": "./buildImage.sh",
+    "test": "node --test 'test/unit/*.test.js'",
+    "test:integration": "node --test 'test/integration/*.test.js'",
+    "test:all": "node --test 'test/**/*.test.js'",
+    "lint": "eslint ."
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

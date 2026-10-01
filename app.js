@@ -17,6 +17,7 @@ var reset = require('./routes/reset')
 var verify = require('./routes/verify')
 var debug = require('debug')('app')
 var sleep = require("sleep-promise");
+var log = require('./log')
 
 require('dactic/media/')
 
@@ -34,7 +35,7 @@ if (config.get('signing_PEM')) {
     var SigningPEM = fs.readFileSync(f)
     if (SigningPEM) { debug('Found Signing Provate Key File') }
   } catch (err) {
-    console.log('Could not find Private PEM File: ', f, err)
+    log.log('Could not find Private PEM File: ', f, err)
     process.exit(1)
   }
 }
@@ -43,14 +44,22 @@ var app = module.exports = express()
 
 process.send = process.send || function(){}
 const listener  = app.listen(config.get('http_port') || 3002, function(){
-	console.log(`Listening on port ${listener.address().port}`)
+	log.log(`Listening on port ${listener.address().port}`)
 	process.send("ready")
 })
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'))
 app.set('view engine', 'ejs')
-app.use(logger('dev'))
+/*
+ * morgan's 'dev' preset has no timestamp at all, so access log lines could
+ * not be correlated against anything else (the audit trail, another
+ * service's logs, a report of abuse at a given time). This is the same
+ * fields as 'dev', with an ISO timestamp prefixed; it trades 'dev''s color
+ * coding for that, since morgan has no supported way to add a token to a
+ * named preset.
+ */
+app.use(logger(':date[iso] :method :url :status :response-time ms - :res[content-length]'))
 
 var draining = false;
 var stats = {
@@ -67,12 +76,12 @@ app.use((req,res,next)=>{
 	}
 
 	function fn(){
-		console.log("Request Complete");
+		log.log("Request Complete");
 		stats.active_requests--
 		res.removeListener("finish",fn)
 	}
 	stats.active_requests = stats.active_requests + 1
-	console.log("New Request", stats.active_requests);
+	log.log("New Request", stats.active_requests);
 	res.on("finish", fn)
 	next()
 });
@@ -153,7 +162,7 @@ app.use(function (err, req, res, next) {
   res.status(err.status || 500)
   if (!config.get('production')) {
     edata.error = err
-    console.error(err)
+    log.error(err)
   }
   res.format({
     'application/json': function () {
@@ -170,7 +179,7 @@ app.use(function (err, req, res, next) {
 
 async function drain(count){
 	draining=true;
-	console.log("Draining. Active Requests: ", stats.active_requests);
+	log.log("Draining. Active Requests: ", stats.active_requests);
 	if (stats.active_requests<1){
 		return true
 	}
@@ -186,12 +195,12 @@ async function drain(count){
 }
 
 process.on('SIGINT', async function() {
-	console.log("Got SIGINT, Shutting down.");
+	log.log("Got SIGINT, Shutting down.");
   try {
 		await drain(10)
 		process.exit(0)
 	}catch(err){
-		console.log("Error Draining: ", err);
+		log.log("Error Draining: ", err);
 		process.exit(1)
 	}
 })

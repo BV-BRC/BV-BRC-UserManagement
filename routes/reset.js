@@ -8,6 +8,7 @@ var UserModel = DataModel.get('user')
 var config = require("../config")
 var rateLimit = require('../middleware/rateLimit')
 var utils = require('../utils')
+var log = require('../log')
 // var generateToken = require('../generateToken')
 // var validateToken = require('../validateToken')
 // var bcrypt = require('bcrypt')
@@ -22,7 +23,7 @@ var resetRateLimit = rateLimit({
 })
 
 router.use(function (req, res, next) {
-  console.log('Reset Route Start')
+  log.log('Reset Route Start')
   next()
 })
 
@@ -38,7 +39,7 @@ router.get('/:email/:code', [
       return next(new errors.NotAcceptable('Invalid Reset Code'))
     }
 
-    console.log('Resetting Account: ', req.params.email, req.params.code)
+    log.log('Resetting Account: ', req.params.email, req.params.code)
     when(UserModel.query('and(eq(email,' + encodeURIComponent(req.params.email) + '),eq(resetCode,' + encodeURIComponent(req.params.code) + '))&limit(1)'), function (results) {
       var r = results.getData()
       if (r.length < 1) {
@@ -46,7 +47,9 @@ router.get('/:email/:code', [
       }
 
       req.resetUser = r[0]
-      console.log('reset user: ', req.resetUser)
+      // Not the full object: it carries the bcrypt password hash and the
+      // (soon-to-be-consumed) reset code itself.
+      log.log('reset user: ', req.resetUser.id)
       res.render('change_password', {title: 'Set New Password', request: req})
     }, function (err) {
       next(err)
@@ -67,7 +70,7 @@ router.post('/:email/:code', [
       return next(new errors.NotAcceptable('Invalid Reset Code'))
     }
 
-    console.log('Resetting Account: ', req.params.email, req.params.code)
+    log.log('Resetting Account: ', req.params.email, req.params.code)
     when(UserModel.query('and(eq(email,' + encodeURIComponent(req.params.email) + '),eq(resetCode,' + encodeURIComponent(req.params.code) + '))&limit(1)'), function (results) {
       var r = results.getData()
       if (r.length < 1) {
@@ -93,7 +96,7 @@ router.post('/', [
       return next(new errors.NotAcceptable('Missing Email'))
     }
     when(UserModel.resetAccount(req.body.email, {mail_user: true}), function () {
-      console.log('Reset Account Complete')
+      log.log('Reset Account Complete')
       res.status(201)
       res.write('OK')
       res.end()

@@ -6,6 +6,7 @@ var https = require('https')
 var Defer = require('promised-io/promise').defer
 var when = require('promised-io/promise').when
 var withUserAgent = require('./userAgent').withUserAgent
+var log = require('./log')
 
 var ssCache = {}
 
@@ -139,7 +140,7 @@ var validateToken = function (token, signingSubject) {
   // against it. Verified reproducible against the pre-fix logic.
   if (parsedToken.SigningSubject !== signingSubject) {
     var def = new Defer()
-    console.log('Rejecting token: SigningSubject ', parsedToken.SigningSubject,
+    log.log('Rejecting token: SigningSubject ', parsedToken.SigningSubject,
       ' does not match configured ', signingSubject)
     def.resolve(false)
     return def.promise
@@ -152,7 +153,7 @@ var validateToken = function (token, signingSubject) {
   }, function (err) {
     // Log the reason, not just the URL: a key-fetch failure rejects every token
     // and otherwise looks identical to a genuinely bad signature.
-    console.log('Error retrieving SigningSubject: ', parsedToken.SigningSubject, err)
+    log.log('Error retrieving SigningSubject: ', parsedToken.SigningSubject, err)
     return false
   })
 }
@@ -160,7 +161,7 @@ var validateToken = function (token, signingSubject) {
 module.exports = function (token, signingSubject) {
   return when(validateToken(token, signingSubject), function (valid) {
     if (!valid) {
-      console.log('Invalid Token')
+      log.log('Invalid Token')
       return false
     }
 
@@ -178,7 +179,7 @@ module.exports = function (token, signingSubject) {
   }, function (err) {
     // Any failure reaching here means the token could not be proven valid, so
     // it is refused. Log it: this is the last place the reason exists.
-    console.log('Token validation failed: ', err)
+    log.log('Token validation failed: ', err)
     return false
   })
 }

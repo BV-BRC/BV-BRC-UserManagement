@@ -12,6 +12,11 @@ BV-BRC User Service (p3_user) - A Node.js/Express REST API for managing BV-BRC u
 # Start the server
 npm start                    # Runs: node app.js
 
+# Test
+npm test                     # unit tests: no mongo, no network, ~1s
+npm run test:integration     # needs a scratch mongod; skips cleanly without one
+npm run test:all             # both
+
 # Build singularity container
 npm run build-image          # Runs: ./buildImage.sh
 
@@ -19,9 +24,61 @@ npm run build-image          # Runs: ./buildImage.sh
 ./node_modules/.bin/eslint . # ESLint 8 with eslint-config-standard 17
 ```
 
-There is **no test suite**. `npm test` is not defined, and there are no test
-files. Verify changes by exercising the affected path directly — see
-"Verifying changes without a test suite" below.
+There **is** a test suite now, under `test/` — see [`test/README.md`](test/README.md).
+It uses node's built-in `node:test` runner, so it added no dependencies. It is
+**not** comprehensive: it pins the invariants that were expensive to discover
+(the dactic behaviors below, the `source`/realm coupling, facet default-deny,
+RQL validation) rather than aiming at coverage. For anything it does not
+cover, the manual harnesses in "Verifying changes without a test suite" below
+are still the method — and are still how the suite's own fixtures were
+derived.
+
+Two things to know before adding to it: the unit layer needs no
+infrastructure and must stay that way, and pending tests for unimplemented
+work are marked `todo` (they run and report without failing the build) rather
+than commented out.
+
+The integration layer is verified against **mongod 3.4.24** (production's
+version). Homebrew cannot supply a server that old — `homebrew-core` has no
+`mongod` and the `mongodb/brew` tap starts at 7.0, outside `mongodb@3.5.9`'s
+supported 2.6–4.2 range. `test/README.md` has the tarball recipe; the
+x86_64 build runs under Rosetta.
+
+### Registration fails when an optional profile field is omitted
+
+Found by the integration layer, **not yet fixed**. `registerUser` copies its
+allowlist unconditionally (`models/user.js:118-121`):
+
+```js
+cpProps.forEach((prop)=>{ newUser[prop]=user[prop] })   // undefined for omitted keys
+```
+
+An omitted `affiliation`/`organisms`/`interests` therefore lands as
+`undefined`. Plain JS hides this — AJV skips `undefined` and a JSON clone
+drops the key — but **BSON serializes it to `null`**, and the schema's
+`type: 'string'` rejects null on the *next* write:
+
+```
+data.affiliation should be string, data.organisms should be string, data.interests should be string
+```
+
+Failure is delayed, and the damage differs by path:
+
+- **with a password** — `setPassword`'s error handler deletes the account
+  (`models/user.js:165`); the caller gets an error and no account
+- **without a password** (the invite flow) — the account is **left behind**
+  and can never be written to again: no password reset, no email
+  verification, no profile edit
+
+Reachable only from a client that omits the keys entirely. An HTML form always
+sends `""`, which passes — which is why this has gone unnoticed. A JSON API
+caller posting just the documented required fields hits it. The fix is to skip
+`undefined` in that loop. `test/integration/store.test.js` pins the current
+behavior, so fixing it fails that test on purpose.
+
+This is also the general warning: **`undefined` is not `absent` once mongo is
+involved.** Any future optional field with a `type` in the schema inherits the
+same trap.
 
 **Lint is not a gate.** `eslint .` reports ~850 errors, essentially all
 pre-existing style debt (`semi`, `quotes`, `space-before-function-paren`).
@@ -46,6 +103,20 @@ Generate signing keypair:
 openssl genrsa -out private.pem 2056
 openssl rsa -in private.pem -pubout -out public.pem
 ```
+
+### nconf splits every key on `:` — never key a config object by URL
+
+`{'https://www.bv-brc.org': 'bvbrc'}` is silently rewritten to
+`{https: {'//www.bv-brc.org': 'bvbrc'}}`, so every lookup misses. This happens
+in `defaults` in `config.js`, in `p3-user.conf`, and via `.set()` alike —
+**arrays are the only shape that survives all three**. That is why
+`registration_site_map` is a list of `{url, site}` rather than the map it
+obviously wants to be.
+
+The failure is quiet: nothing errors, the source still looks right, and every
+origin just resolves to `unknown`. Pinned in
+`test/unit/registration-site.test.js` both as the nconf behavior itself and as
+an assertion that the *shipped* config resolves the real production origins.
 
 ## Architecture
 
@@ -90,6 +161,42 @@ the subject match and signature verification.
 - Passwords stored as bcrypt hashes; legacy SHA1 passwords auto-migrated on successful login
 - User lookups support both username and email via `or(eq(id,...),eq(email,...))` queries
 - Realm mapping (`realm_map` config) maps sources to token realms (e.g., "bvbrc" -> "bvbrc")
+
+### Registration provenance: `registration_site`, not `source`
+
+Which frontend property an account was created from (BV-BRC, MAAGE, DXKB,
+LDKB) is recorded in two fields on the user record: `registration_site` (the
+slug) and `registration_site_url` (the normalized origin it was derived
+from). The client declares it by passing `registration_site_url` —
+`window.App.appBaseURL` — to `POST /register`. It is optional, so existing
+clients keep working; frontends sending it are a follow-up PR per repo.
+
+**`source` looks like the field for this and is not — it is auth-bearing.**
+`generateToken.js:40` derives the token realm from `realm_map[user.source]`,
+so writing `maage` there mints `un=alice@undefined` tokens that then fail
+their own realm check in `middleware/token.js:9-11`. The separation is
+deliberate; keep provenance out of anything in the auth path.
+
+Three rules the implementation rests on, each with a test:
+
+- **The slug is derived, never copied.** Only `registration_site_url` is in
+  the `cpProps` allowlist; `registerUser` resolves the slug from it. A client
+  that sends its own `registration_site` is ignored — otherwise anyone could
+  self-attribute to any property.
+- **No `enum` on the schema properties.** `Model.patch` does get → apply →
+  `put`, and `put` runs AJV over the *whole* document, so a record holding a
+  value later dropped from the enum would fail validation on every subsequent
+  write — no password reset, no verification, no profile edit. Retiring a
+  site would silently brick those accounts. The allowed set lives in config
+  and is enforced at registration only.
+- **An unmapped-but-well-formed origin is `unknown`, not an error.** A
+  property launching before this service's map is updated must still be able
+  to register users; the stored URL lets slugs be backfilled. Only a
+  *malformed* value (unparseable, or non-`http(s)`) is a 400.
+
+Omission is handled by `delete`, not by leaving `undefined` — see the
+optional-field trap above; `undefined` would become BSON `null` and break the
+next write.
 
 ### Outbound User-Agent
 
@@ -249,6 +356,24 @@ RQL special syntax to watch for:
 - `gt:`, `lt:`, `ge:`, `le:` - comparison operators
 - `or()`, `and()` - logical operators
 
+**Validation and encoding cover different attacks — you need both.** Measured
+against mongod 3.4.24 (`test/integration/store.test.js`):
+
+- **`encodeURIComponent` handles the `re:` class.** Unencoded,
+  `eq(resetCode,re:.*)` is compiled to an actual `RegExp` by
+  `dactic-store-mongodb/rql.js` and matches every document. Encoded,
+  `re%3A.*` survives as the literal string `re:.*` and matches nothing.
+- **It does *not* handle structural injection.** `encodeURIComponent` leaves
+  `!'()*-._~` unescaped, so a reset code of `X),eq(id,admin` closes the
+  `eq()` early and injects an extra term into the surrounding `and()` —
+  `{$and: [{email: …}, {resetCode: "X"}, {…}]}` instead of two terms. That
+  extra term currently degrades into a clause matching nothing, so this is
+  not a known live bypass; it is one parser change away from being one.
+  `isValidCode()` is what closes it, and is **not** redundant with encoding.
+
+So neither defense subsumes the other: keep the format check *and* the
+encoding on every interpolation.
+
 ### Reset/Verification Codes
 
 - Generated by `randomstring.generate(5).toUpperCase()`
@@ -256,10 +381,12 @@ RQL special syntax to watch for:
 - Validate with `utils.isValidCode()` before use in queries
 - Always use `encodeURIComponent()` when embedding in RQL queries
 
-## Verifying changes without a test suite
+## Verifying changes the test suite doesn't cover
 
-There are no tests, so verification is manual. These throwaway harnesses have
-each caught a real defect and are worth rebuilding rather than skipping:
+`npm test` covers the model, facet, token and RQL-validation paths. It does
+**not** boot the app, render templates, speak SMTP, or exercise HTTP routing,
+so verification for those remains manual. These throwaway harnesses have each
+caught a real defect and are worth rebuilding rather than skipping:
 
 **Boot the app.** Needs a config, a keypair, and something on :27017. Without a
 local mongod, a TCP server that accepts and never replies keeps the driver
@@ -274,8 +401,10 @@ P3_USER_CONFIG=/tmp/t.conf node app.js
 
 **Token round trip.** Point `signingSubjectURL` at a local HTTP server that
 serves `{"pubkey": "<PEM>"}`, then mint with `generateToken.js` and verify with
-`validateToken.js`. This is the only way to test the auth path end to end, and
-it is how the SigningSubject bypass was confirmed.
+`validateToken.js`. This is how the SigningSubject bypass was confirmed. The
+suite covers generation and the realm coupling
+(`test/unit/token-realm.test.js`) but stops short of `validateToken.js`, which
+makes a real HTTP fetch — that half still needs this harness.
 
 **Mail.** `models/user.js` `mail()` can be driven against a throwaway SMTP
 server (a `net` server speaking enough of the protocol to reach `DATA`).

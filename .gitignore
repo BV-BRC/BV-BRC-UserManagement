@@ -5,3 +5,4 @@ p3-user.conf
 *.pem
 *.sif
 p3_user.code-workspace
+audit.log
