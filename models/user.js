@@ -10,13 +10,14 @@ var errors = require('dactic/errors')
 var util = require('util')
 var Result = require('dactic/result')
 var utils = require('../utils')
+var log = require('../log')
 
 function resetMessage (resetCode, email) {
   // console.log('Generate Reset Message')
   var siteUrl = config.get('siteURL')
   // console.log('Reset Code: ', resetCode)
   var msg = 'Click the following link or paste into your browser to Reset Your Password \n\n\t' + siteUrl + '/reset/' + encodeURIComponent(email) + '/' + resetCode
-  console.log('Reset URL: '+ siteUrl + '/reset/' + encodeURIComponent(email) + '/' + resetCode)
+  log.log('Reset URL: '+ siteUrl + '/reset/' + encodeURIComponent(email) + '/' + resetCode)
   return msg
 }
 
@@ -25,7 +26,7 @@ function validateMessage (verificationCode, email) {
   var siteUrl = config.get('siteURL')
   // console.log('Reset Code: ', resetCode)
   var msg = 'Click the following link or paste into your browser to verify your email address. \n\n\t' + siteUrl + '/verify/' + encodeURIComponent(email) + '/' + verificationCode
-  console.log('Verification URL: '+ siteUrl + '/verify/' + encodeURIComponent(email) + '/' + verificationCode)
+  log.log('Verification URL: '+ siteUrl + '/verify/' + encodeURIComponent(email) + '/' + verificationCode)
   return msg
 }
 
@@ -220,10 +221,18 @@ Model.prototype.registerUser = function (user) {
             var resetUser = resetResults.getData()
             // console.log("Mail User")
             return When(_self.mail(newUser.id, 'Click the following link or paste into your browser to Complete Registration\n\n\t ' + siteUrl + '/reset/' + encodeURIComponent(newUser.email) + '/' + resetUser.resetCode, 'BVBRC Registration', {}), function () {
-              console.log('Registration Complete URL : '+ siteUrl + '/reset/' + encodeURIComponent(newUser.email) + '/' + resetUser.resetCode)
-              return resetUser
+              log.log('Registration Complete URL : '+ siteUrl + '/reset/' + encodeURIComponent(newUser.email) + '/' + resetUser.resetCode)
+              /*
+               * Must be a Result, not the bare resetUser object: this is what
+               * registerUser() resolves to, and routes/register.js:30 calls
+               * .getData() on it unconditionally. Returning resetUser directly
+               * crashed every no-password registration with "registerResp.getData
+               * is not a function" -- confirmed on unmodified master too, so this
+               * predates the registration_site work.
+               */
+              return new Result(resetUser)
             }, function(err){
-              console.log("Error Sending mail during registration: ", err, "Delete new account")
+              log.log("Error Sending mail during registration: ", err, "Delete new account")
               return _self.delete(username).then(()=>{
                 throw new Error("There was an error sending you notification of account creation.  Please try creating your account again.")
               }) 
@@ -355,7 +364,7 @@ Model.prototype.resetAccount = function (id, opts) {
           _self.emit('message', {action: 'update', item: user})
           return new Result(user)
         }, function(err){
-          console.log("Error sending email : ", err)
+          log.log("Error sending email : ", err)
           return new Result(user)          
         })
       } else {
@@ -363,7 +372,7 @@ Model.prototype.resetAccount = function (id, opts) {
         return new Result(user)
       }
     }, function (err) {
-      console.log("resetUser patch err: ",err)
+      log.log("resetUser patch err: ",err)
       return err
     })
   })
@@ -421,10 +430,10 @@ Model.prototype.sendVerificationEmail = function (id, opts) {
         _self.emit('message', {action: 'update', item: user})
         return new Result(user)
       }, function(err){
-        console.log("Error sending email : ", err)
+        log.log("Error sending email : ", err)
         return _self.patch(id, [{'op': 'add','path': "/verification_error",'value': err}]).then(function () {
           user.verificaton_error=err
-          console.log("rethrow error")
+          log.log("rethrow error")
           throw err
         })
       })
@@ -453,7 +462,7 @@ Model.prototype._validateSHA=function(password,encrypted,algo,iterations,id,opts
 	}
 
 	if (hash===encrypted){
-		console.log("Re-encode sha1 password as bcrypt for user id: ", id);
+		log.log("Re-encode sha1 password as bcrypt for user id: ", id);
 		When(this.setPassword(id,password), function(){
 			def.resolve(true);
 		});
@@ -509,10 +518,10 @@ Model.prototype.setPassword = function (id, password, opts) {
 
     opts.overwrite = true
     When(_self.patch(id, patch, opts), function (res) {
-      console.log('User ' + id + ' changed password.')
+      log.log('User ' + id + ' changed password.')
       def.resolve(new Result('Password Changed'))
     }, function (err) {
-      console.log('Errr Posting Updated Password to db: ', err)
+      log.log('Errr Posting Updated Password to db: ', err)
       def.reject(err)
     })
   })
