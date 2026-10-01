@@ -3,6 +3,7 @@ var util = require('util')
 var uuid = require('uuid')
 var config = require('../config')
 var MongoClient = require('mongodb').MongoClient
+var log = require('../log')
 
 var Model = module.exports = function (store, opts) {
   ModelBase.apply(this, arguments)
@@ -64,12 +65,12 @@ Model.prototype._getCollection = function () {
           { createdAt: 1 },
           { expireAfterSeconds: 3600, background: true }
         ).then(function () {
-          console.log('Rate limit TTL index created')
+          log.log('Rate limit TTL index created')
           self._indexCreated = true
         }).catch(function (err) {
           // Index may already exist, that's fine
           if (err.code !== 85) { // 85 = IndexOptionsConflict (index already exists)
-            console.error('Error creating rate limit TTL index:', err)
+            log.error('Error creating rate limit TTL index:', err)
           }
           self._indexCreated = true
         })
@@ -78,7 +79,7 @@ Model.prototype._getCollection = function () {
       return self._collection
     })
     .catch(function (err) {
-      console.error('Failed to connect to MongoDB for rate limiting:', err)
+      log.error('Failed to connect to MongoDB for rate limiting:', err)
       return null
     })
 }
@@ -103,7 +104,7 @@ Model.prototype.recordRequest = function (email, endpoint) {
       return collection.insertOne(record)
     })
     .catch(function (err) {
-      console.error('Error recording rate limit request:', err)
+      log.error('Error recording rate limit request:', err)
       return null
     })
 }
@@ -129,7 +130,7 @@ Model.prototype.countRequests = function (email, endpoint, windowMs) {
       })
     })
     .catch(function (err) {
-      console.error('Error counting rate limit requests:', err)
+      log.error('Error counting rate limit requests:', err)
       return 0 // Fail open
     })
 }
@@ -162,7 +163,7 @@ Model.prototype.getOldestRequestTime = function (email, endpoint, windowMs) {
       return null
     })
     .catch(function (err) {
-      console.error('Error getting oldest rate limit request:', err)
+      log.error('Error getting oldest rate limit request:', err)
       return null
     })
 }
@@ -186,7 +187,7 @@ Model.prototype.cleanup = function (windowMs) {
       return true
     })
     .catch(function (err) {
-      console.error('Error cleaning up rate limit records:', err)
+      log.error('Error cleaning up rate limit records:', err)
       return true
     })
 }

@@ -48,9 +48,14 @@ var defaults = {
    */
   'registration_site_map': [
     { url: 'https://www.bv-brc.org', site: 'bvbrc' },
+    { url: 'https://alpha.bv-brc.org', site: 'bvbrc' },
+    { url: 'https://beta.bv-brc.org', site: 'bvbrc' },
     { url: 'https://bv-brc.org', site: 'bvbrc' },
     { url: 'https://www.patricbrc.org', site: 'bvbrc' },
+    { url: 'https://maage-brc.org', site: 'maage' },
     { url: 'https://www.maage-brc.org', site: 'maage' },
+    { url: 'https://dwv.maage-brc.org', site: 'maage' },
+    { url: 'https://maage-brc.org', site: 'maage' },
     { url: 'https://dxkb.org', site: 'dxkb' },
     { url: 'https://ldkb.org', site: 'ldkb' }
   ],
@@ -62,6 +67,19 @@ var defaults = {
    * alongside it.
    */
   'default_registration_site': 'bvbrc',
+
+  /*
+   * Absolute path to a newline-delimited-JSON audit log of security-relevant
+   * events (currently: registration attempts and completions). Separate from
+   * the general console log, which is unstructured prose interleaved with
+   * request counts and driver warnings -- see audit.js.
+   *
+   * Empty by default: local/dev runs still see every event, via the
+   * timestamped console logger with an AUDIT tag (log.js), so nothing extra
+   * is required to work. Production should set this to a path under /logs,
+   * which singularity.def already creates and mounts for pm2's combined log.
+   */
+  'audit_log_file': '',
   'email': {
     'localSendmail': false,
     'defaultFrom': 'PATRIC <do-not-reply@patricbrc.org>',

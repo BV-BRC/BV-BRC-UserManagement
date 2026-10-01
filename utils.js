@@ -155,3 +155,22 @@ exports.resolveSiteSlug = function (origin, siteMap) {
 
   return (match && match[1]) ? match[1] : 'unknown'
 }
+
+/**
+ * Resolve the originating client IP from a request.
+ *
+ * x-forwarded-for first: this service sits behind the same nginx/Cloudflare
+ * front door as p3_api (see p3_api/app.js's :remote-ip morgan token), so
+ * req.connection.remoteAddress alone would log the proxy's address for every
+ * request, not the client's. x-forwarded-for can carry a comma-separated
+ * chain when multiple proxies are involved; the first entry is the original
+ * client.
+ *
+ * @param {http.IncomingMessage} req
+ * @return {String|undefined}
+ */
+exports.clientIp = function (req) {
+  var forwarded = req.headers && req.headers['x-forwarded-for']
+  if (forwarded) { return forwarded.split(',')[0].trim() }
+  return req.connection && req.connection.remoteAddress
+}
