@@ -54,7 +54,7 @@ var defaults = {
     { url: 'https://www.patricbrc.org', site: 'bvbrc' },
     { url: 'https://maage-brc.org', site: 'maage' },
     { url: 'https://www.maage-brc.org', site: 'maage' },
-    { url: 'https://dwv.maage-brc.org', site: 'maage' },
+    { url: 'https://dev.maage-brc.org', site: 'maage' },
     { url: 'https://maage-brc.org', site: 'maage' },
     { url: 'https://dxkb.org', site: 'dxkb' },
     { url: 'https://ldkb.org', site: 'ldkb' }
